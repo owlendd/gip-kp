@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>КП Генератор — ГИП ФОРМАТ</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#111;color:#fff}
+.layout{display:flex;height:100vh}
+
+/* Sidebar */
+.sidebar{width:250px;background:#0a0a0a;border-right:1px solid #333;padding:20px 14px;flex-shrink:0;overflow-y:auto}
+.sidebar h2{color:#8BC34A;font-size:17px;margin-bottom:20px;padding:0 6px}
+.sidebar button{display:block;width:100%;text-align:left;padding:9px 12px;margin-bottom:4px;border:none;border-radius:6px;background:#1a1a1a;color:#999;font-size:13px;cursor:pointer;transition:all .15s}
+.sidebar button:hover{background:#252525;color:#fff}
+.sidebar button.active{background:#8BC34A;color:#000;font-weight:600}
+.sidebar .sep{height:1px;background:#333;margin:10px 0}
+.sidebar .sep-label{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px;padding:0 6px;margin:8px 0 4px}
+
+/* Main */
+.main{flex:1;overflow-y:auto;padding:32px 40px}
+.content{max-width:860px;margin:0 auto}
+.section{display:none}.section.active{display:block}
+h2.title{color:#8BC34A;font-size:22px;margin-bottom:20px}
+h3{font-size:15px;margin-bottom:10px;color:#ccc}
+h4{font-size:13px;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+label.field-label{display:block;font-size:12px;color:#aaa;margin-bottom:5px}
+input[type="text"],input[type="number"],input[type="date"],select,textarea{
+  width:100%;padding:9px 11px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#fff;font-size:13px;outline:none;transition:border .15s}
+input:focus,select:focus,textarea:focus{border-color:#8BC34A}
+textarea{resize:vertical;height:70px}
+.field{margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+
+/* Big input */
+.big-input{font-size:24px!important;padding:16px!important;text-align:center;font-weight:700;border-color:#8BC34A!important}
+.big-input:focus{box-shadow:0 0 0 3px rgba(139,195,74,.2)}
+
+/* Checkboxes */
+.check-group{margin-bottom:8px}
+.check-group label{display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 0;font-size:13px}
+.check-group input[type="checkbox"]{width:16px;height:16px;accent-color:#8BC34A;cursor:pointer}
+
+/* Cards */
+.section-card{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:14px;margin-bottom:10px}
+.section-card .label{font-size:12px;font-weight:500;margin-bottom:8px;color:#ddd}
+.section-card .checks{display:flex;gap:20px}
+.section-card .checks label{display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;cursor:pointer}
+
+/* Info boxes */
+.info-box{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:16px;margin-bottom:14px}
+.info-box.accent{border-color:rgba(139,195,74,.4);background:rgba(139,195,74,.05)}
+.info-box.warn{border-color:rgba(255,193,7,.4);background:rgba(255,193,7,.05)}
+.info-box.internal{border-color:rgba(100,149,237,.4);background:rgba(100,149,237,.05)}
+.info-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2a2a2a;font-size:13px}
+.info-row:last-child{border-bottom:none}
+.info-row .lbl{color:#888}.info-row .val{font-weight:600;color:#ccc}
+.info-row .val.green{color:#8BC34A}.info-row .val.big{font-size:18px;color:#8BC34A}
+
+/* Table */
+.tbl{width:100%;border-collapse:separate;border-spacing:0;border-radius:8px;overflow:hidden;margin-bottom:14px}
+.tbl th{background:#222;color:#8BC34A;padding:10px 12px;font-size:11px;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:.3px}
+.tbl td{padding:9px 12px;font-size:12px;border-bottom:1px solid #2a2a2a;background:#1a1a1a;color:#ccc}
+.tbl tr:nth-child(even) td{background:#161616}
+.tbl tr.total td{background:rgba(139,195,74,.08)!important;font-weight:700;color:#fff;font-size:13px}
+.tbl .hl{color:#8BC34A;font-weight:600}
+
+/* Buttons */
+.actions{margin-top:32px;display:flex;gap:10px;flex-wrap:wrap;padding-bottom:32px}
+.btn{padding:12px 24px;font-size:14px;font-weight:600;border:none;border-radius:8px;cursor:pointer;transition:all .15s}
+.btn-primary{background:#8BC34A;color:#000}.btn-primary:hover{background:#7ab300}
+.btn-secondary{background:#333;color:#fff}.btn-secondary:hover{background:#444}
+.btn-blue{background:#4a7cc9;color:#fff}.btn-blue:hover{background:#3a6cb9}
+.btn-sm{padding:8px 16px;font-size:12px;border-radius:6px}
+.btn-add{padding:8px 16px;background:#8BC34A;color:#000;font-weight:500;font-size:13px;border:none;border-radius:6px;cursor:pointer}
+.btn-remove{padding:8px 14px;background:#5c1a1a;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:12px}
+.btn-remove:hover{background:#7a2222}
+
+.excl-row{display:flex;gap:8px;margin-bottom:6px}
+.excl-row input{flex:1}
+.payment-card{background:#1a1a1a;border-radius:8px;padding:14px;margin-bottom:10px}
+
+/* Timeline */
+.timeline{position:relative;padding-left:24px;margin:16px 0}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:#333}
+.tl-item{position:relative;margin-bottom:14px;padding-left:16px}
+.tl-item::before{content:'';position:absolute;left:-20px;top:6px;width:10px;height:10px;border-radius:50%;background:#8BC34A;border:2px solid #111}
+.tl-date{font-size:11px;color:#8BC34A;font-weight:600}.tl-desc{font-size:13px;color:#ccc;margin-top:2px}.tl-amount{font-size:12px;color:#888;margin-top:1px}
+
+/* History */
+.hist-card{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:14px;margin-bottom:8px;cursor:pointer;transition:border .15s}
+.hist-card:hover{border-color:#8BC34A}
+.hist-card .name{font-size:14px;font-weight:600;margin-bottom:4px}
+.hist-card .meta{font-size:11px;color:#888}
+.hist-card .price{font-size:13px;color:#8BC34A;font-weight:600;margin-top:4px}
+
+/* Labor */
+.labor-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #2a2a2a;font-size:12px}
+.labor-row.header{font-weight:600;color:#8BC34A;font-size:11px;text-transform:uppercase;border-bottom:2px solid #333}
+.labor-input{width:100%;padding:6px 8px;background:#222;border:1px solid #333;border-radius:4px;color:#fff;font-size:12px;text-align:center}
+
+/* НДС badge */
+.nds-badge{display:inline-block;background:rgba(139,195,74,.15);border:1px solid rgba(139,195,74,.3);border-radius:4px;padding:3px 10px;font-size:11px;color:#8BC34A;font-weight:600}
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <h2>КП Генератор</h2>
+    <div id="nav"></div>
+  </div>
+  <div class="main">
+    <div class="content" id="sections"></div>
+  </div>
+</div>
+
+<script>
+// ========== CONFIG ==========
+const COST_COEFFICIENT = 3.72;
+const SALARY_TO_COST_COEFF = 1.42;
+const NDS_RATE = 0.05;
+const WORKING_DAYS_PER_MONTH = 30;
+
+const DEFAULT_SECTIONS = [
+  {key:'gp', label:'Генеральный план (ГП)', pct:4},
+  {key:'ar', label:'Архитектурные решения (АР)', pct:26},
+  {key:'kr', label:'Конструктивные решения (КР)', pct:30},
+  {key:'eo', label:'Электроснабжение (ЭС, ЭОМ)', pct:8},
+  {key:'vk', label:'Сети водоснабжения и канализации (ВК, НВК)', pct:9},
+  {key:'ovik', label:'Отопление, вентиляция и кондиционирование (ОВиК)', pct:12},
+  {key:'ss', label:'Слаботочные системы (СС)', pct:7},
+  {key:'pos', label:'ПОС', pct:1.5},
+  {key:'oos', label:'ООС', pct:1.5},
+  {key:'mpb', label:'МПБ', pct:1},
+  {key:'th', label:'Технологические решения (ТХ)', pct:5},
+];
+
+const OBJECT_TYPES = ['Жилой комплекс','Общественное здание','Торговый центр','Паркинг','Промышленный объект','Другое'];
+const GAP_OPTIONS = ['Айгуль','Ксения','Слава','Рустем'];
+
+const NAV_SECTIONS = [
+  {id:'main',label:'Основная информация'},
+  {id:'parameters',label:'Параметры объекта'},
+  {id:'stages',label:'Стадии и состав работ'},
+  {id:'design',label:'Разделы проектирования'},
+  {id:'costs',label:'Стоимость'},
+  {id:'labor',label:'Калькулятор трудозатрат'},
+  {id:'schedules',label:'Сроки'},
+  {id:'payment',label:'Оплата и график'},
+  {id:'gap',label:'ГАП'},
+  {id:'exclusions',label:'Что не входит'},
+  {id:'_sep1',label:''},
+  {id:'analytics',label:'Внутренняя аналитика'},
+  {id:'history',label:'История проектов'},
+  {id:'_sep2',label:''},
+  {id:'generate',label:'Сформировать КП'},
+];
+
+// ========== STATE ==========
+function makeDefaultFd(){
+  const fd = {
+    projectName:'', customerName:'', kpDate:new Date().toISOString().split('T')[0],
+    kpNumber:'', kpVersion:1, validityDays:30, internalNotes:'',
+    objectType:'', objectAddress:'', objectPurpose:'', totalArea:0, floorsCount:'',
+    sectionsCount:0, apartmentsCount:0, landArea:0, cadastralNumber:'',
+    stages:{ago:false,stageP:false,stageR:false,expertise:false,engineering:false},
+    additionalServices:{fireSafety:false,sanitary:false,authorSupervision:false},
+    designSections:{},
+    totalContractPrice:0,
+    costs:{agoPrice:0, engineeringPrice:0, expertisePrice:0, additionalWorksPrice:0},
+    labor:{avgSalary:100, sectionStaff:{}},
+    schedules:{agoDays:0,engineeringDays:0,stagePDays:0,expertiseDays:0,stageRDays:0},
+    payments:[
+      {pct:20,desc:'Аванс'},
+      {pct:20,desc:'После передачи проектной документации'},
+      {pct:20,desc:'После экспертизы проекта'},
+      {pct:15,desc:'Аванс рабочей документации'},
+      {pct:15,desc:'После передачи рабочей документации'},
+      {pct:10,desc:'После отработки замечаний'},
+    ],
+    gapName:'',
+    exclusions:['Проведение тендеров','Смета на строительно-монтажные работы','Авторский надзор','Экспертиза'],
+  };
+  DEFAULT_SECTIONS.forEach(s=>{
+    fd.designSections[s.key]={enabled:true,stageP:true,stageR:true,pct:s.pct};
+    fd.labor.sectionStaff[s.key]={people:1,months:3};
+  });
+  return fd;
+}
+
+let fd = makeDefaultFd();
+let history=[];
+try{const s=localStorage.getItem('kpFormV3');if(s){const loaded=JSON.parse(s);fd={...makeDefaultFd(),...loaded}}}catch(e){}
+try{const h=localStorage.getItem('kpHistory');if(h)history=JSON.parse(h)}catch(e){}
+// ensure new sections exist in old saved data
+DEFAULT_SECTIONS.forEach(s=>{
+  if(!fd.designSections[s.key])fd.designSections[s.key]={enabled:true,stageP:true,stageR:true,pct:s.pct};
+  if(!fd.designSections[s.key].hasOwnProperty('pct'))fd.designSections[s.key].pct=s.pct;
+  if(!fd.labor.sectionStaff[s.key])fd.labor.sectionStaff[s.key]={people:1,months:3};
+});
+if(!fd.payments)fd.payments=makeDefaultFd().payments;
+
+function save(){localStorage.setItem('kpFormV3',JSON.stringify(fd))}
+function saveHistory(){localStorage.setItem('kpHistory',JSON.stringify(history))}
+
+let activeSection='main';
+
+// ========== HELPERS ==========
+function fmt(n){return Math.round(Number(n)).toLocaleString('ru-RU')}
+function fmtDec(n,d=1){return Number(n).toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function optSel(arr,val){return arr.map(v=>`<option value="${v}" ${v===val?'selected':''}>${v}</option>`).join('')}
+function esc(s){return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;')}
+
+function getEnabledSections(){return DEFAULT_SECTIONS.filter(s=>fd.designSections[s.key]?.enabled)}
+function getSectionPct(key){return fd.designSections[key]?.pct ?? DEFAULT_SECTIONS.find(s=>s.key===key)?.pct ?? 0}
+
+function calcTotals(){
+  const enabled = getEnabledSections();
+  const rawPctSum = enabled.reduce((a,s)=>a+getSectionPct(s.key),0);
+  const totalWithNds = fd.totalContractPrice;
+  const nds = totalWithNds - totalWithNds / (1 + NDS_RATE);
+  const basePrice = totalWithNds - nds;
+  const totalCost = basePrice / COST_COEFFICIENT;
+  const margin = basePrice > 0 ? (basePrice - totalCost) / basePrice * 100 : 0;
+  const pricePerM2 = fd.totalArea > 0 ? totalWithNds / fd.totalArea : 0;
+  const extras = fd.costs.agoPrice + fd.costs.engineeringPrice + fd.costs.expertisePrice + fd.costs.additionalWorksPrice;
+  const grandTotal = totalWithNds + extras;
+  const sectionBreakdown = DEFAULT_SECTIONS.map(s=>{
+    const en = fd.designSections[s.key]?.enabled;
+    const myPct = getSectionPct(s.key);
+    const adjPct = en && rawPctSum > 0 ? myPct / rawPctSum * 100 : 0;
+    const price = basePrice * adjPct / 100;
+    const cost = price / COST_COEFFICIENT;
+    return {...s, myPct, adjPct, price, cost, enabled: en};
+  });
+  return {basePrice,nds,totalWithNds,totalCost,margin,pricePerM2,extras,grandTotal,sectionBreakdown,rawPctSum};
+}
+
+function calcLabor(sKey){
+  const staff = fd.labor.sectionStaff[sKey] || {people:1,months:3};
+  const costPerMonth = fd.labor.avgSalary * SALARY_TO_COST_COEFF;
+  const totalCost = staff.people * staff.months * costPerMonth * 1000;
+  const budgetForSection = calcTotals().sectionBreakdown.find(s=>s.key===sKey)?.cost || 0;
+  const diff = budgetForSection - totalCost;
+  return {costPerMonth, totalCost, budgetForSection, diff, ok: diff >= 0};
+}
+
+// ========== NAV ==========
+function getSectionStatus(id){
+  switch(id){
+    case 'main': return fd.projectName&&fd.customerName?'done':(fd.projectName||fd.customerName?'partial':'empty');
+    case 'parameters': return fd.objectType&&fd.totalArea>0?'done':(fd.objectType||fd.totalArea?'partial':'empty');
+    case 'stages': return (fd.stages.stageP||fd.stages.stageR||fd.stages.ago)?'done':'empty';
+    case 'design': return getEnabledSections().length>0?'done':'empty';
+    case 'costs': return fd.totalContractPrice>0?'done':'empty';
+    case 'labor': return fd.labor.avgSalary>0?'done':'empty';
+    case 'schedules': {const s=fd.schedules;return (s.stagePDays||s.stageRDays||s.agoDays)?'done':'empty'}
+    case 'payment': {const sum=fd.payments.reduce((a,p)=>a+p.pct,0);return Math.abs(sum-100)<0.1?'done':(sum>0?'partial':'empty')}
+    case 'gap': return fd.gapName?'done':'empty';
+    case 'exclusions': return fd.exclusions.filter(e=>e).length>0?'done':'empty';
+    default: return 'none';
+  }
+}
+const STATUS_DOT={done:'background:#8BC34A',partial:'background:#FFC107',empty:'background:#444',none:'display:none'};
+
+function renderNav(){
+  const nav=document.getElementById('nav');
+  nav.innerHTML=NAV_SECTIONS.map(s=>{
+    if(s.id.startsWith('_sep'))return `<div class="sep"></div>${s.label?`<div class="sep-label">${s.label}</div>`:''}`;
+    const st=getSectionStatus(s.id);
+    const dot=STATUS_DOT[st]||STATUS_DOT.none;
+    return `<button class="${s.id===activeSection?'active':''}" onclick="switchSection('${s.id}')"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:8px;vertical-align:middle;${dot}"></span>${s.label}</button>`;
+  }).join('');
+}
+function switchSection(id){
+  activeSection=id;
+  renderNav();
+  document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('sec-'+id);
+  if(el)el.classList.add('active');
+  if(id==='analytics'||id==='costs'||id==='labor'||id==='payment')updateDynamic();
+}
+
+// ========== RENDER ==========
+function render(){
+  const c=document.getElementById('sections');
+  const t=calcTotals();
+
+  c.innerHTML=`
+  <!-- ===== ОСНОВНАЯ ИНФОРМАЦИЯ ===== -->
+  <div class="section ${activeSection==='main'?'active':''}" id="sec-main">
+    <h2 class="title">Основная информация</h2>
+    <div class="grid3">
+      <div class="field"><label class="field-label">Номер КП</label>
+        <input type="text" value="${fd.kpNumber}" oninput="fd.kpNumber=this.value;save()" placeholder="КП-2026-001"></div>
+      <div class="field"><label class="field-label">Версия</label>
+        <input type="number" min="1" value="${fd.kpVersion||1}" oninput="fd.kpVersion=parseInt(this.value)||1;save()" style="text-align:center"></div>
+      <div class="field"><label class="field-label">Срок действия, дней</label>
+        <input type="number" min="1" value="${fd.validityDays||30}" oninput="fd.validityDays=parseInt(this.value)||30;save()" style="text-align:center"></div>
+    </div>
+    <div class="field"><label class="field-label">Название проекта *</label>
+      <input type="text" value="${fd.projectName}" oninput="fd.projectName=this.value;save()"></div>
+    <div class="field"><label class="field-label">Заказчик — название организации *</label>
+      <input type="text" value="${fd.customerName}" oninput="fd.customerName=this.value;save()"></div>
+    <div class="field"><label class="field-label">Дата КП *</label>
+      <input type="date" value="${fd.kpDate}" oninput="fd.kpDate=this.value;save()"></div>
+  </div>
+
+  <!-- ===== ПАРАМЕТРЫ ОБЪЕКТА ===== -->
+  <div class="section ${activeSection==='parameters'?'active':''}" id="sec-parameters">
+    <h2 class="title">Параметры объекта</h2>
+    <div class="field"><label class="field-label">Тип объекта</label>
+      <select onchange="fd.objectType=this.value;save()"><option value="">Выберите тип</option>${optSel(OBJECT_TYPES,fd.objectType)}</select></div>
+    <div class="field"><label class="field-label">Адрес объекта</label>
+      <input type="text" value="${fd.objectAddress}" oninput="fd.objectAddress=this.value;save()"></div>
+    <div class="field"><label class="field-label">Назначение</label>
+      <textarea oninput="fd.objectPurpose=this.value;save()">${fd.objectPurpose}</textarea></div>
+    <div class="grid2">
+      <div class="field"><label class="field-label">Общая площадь, м²</label>
+        <input type="number" value="${fd.totalArea||''}" oninput="fd.totalArea=parseFloat(this.value)||0;save();updateDynamic()"></div>
+      <div class="field"><label class="field-label">Этажность</label>
+        <input type="text" value="${fd.floorsCount}" oninput="fd.floorsCount=this.value;save()"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="field-label">Количество секций</label>
+        <input type="number" value="${fd.sectionsCount||''}" oninput="fd.sectionsCount=parseInt(this.value)||0;save()"></div>
+      <div class="field"><label class="field-label">Количество квартир</label>
+        <input type="number" value="${fd.apartmentsCount||''}" oninput="fd.apartmentsCount=parseInt(this.value)||0;save()"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="field-label">Площадь зем. участка, га</label>
+        <input type="number" step="0.01" value="${fd.landArea||''}" oninput="fd.landArea=parseFloat(this.value)||0;save()"></div>
+      <div class="field"><label class="field-label">Кадастровый номер</label>
+        <input type="text" value="${fd.cadastralNumber}" oninput="fd.cadastralNumber=this.value;save()"></div>
+    </div>
+  </div>
+
+  <!-- ===== СТАДИИ ===== -->
+  <div class="section ${activeSection==='stages'?'active':''}" id="sec-stages">
+    <h2 class="title">Стадии и состав работ</h2>
+    <h3>Стадии</h3>
+    <div class="check-group">
+      <label><input type="checkbox" ${fd.stages.ago?'checked':''} onchange="fd.stages.ago=this.checked;save()"> АГО (Архитектурно-градостроительный облик)</label>
+      <label><input type="checkbox" ${fd.stages.stageP?'checked':''} onchange="fd.stages.stageP=this.checked;save()"> Стадия П (Проектная документация)</label>
+      <label><input type="checkbox" ${fd.stages.stageR?'checked':''} onchange="fd.stages.stageR=this.checked;save()"> Стадия Р (Рабочая документация)</label>
+      <label><input type="checkbox" ${fd.stages.expertise?'checked':''} onchange="fd.stages.expertise=this.checked;save()"> Экспертиза</label>
+      <label><input type="checkbox" ${fd.stages.engineering?'checked':''} onchange="fd.stages.engineering=this.checked;save()"> Инженерные изыскания</label>
+    </div>
+    <h3 style="margin-top:16px">Дополнительные услуги</h3>
+    <div class="check-group">
+      <label><input type="checkbox" ${fd.additionalServices.fireSafety?'checked':''} onchange="fd.additionalServices.fireSafety=this.checked;save()"> СТУ по пожарной безопасности</label>
+      <label><input type="checkbox" ${fd.additionalServices.sanitary?'checked':''} onchange="fd.additionalServices.sanitary=this.checked;save()"> Расчёт СЗЗ</label>
+      <label><input type="checkbox" ${fd.additionalServices.authorSupervision?'checked':''} onchange="fd.additionalServices.authorSupervision=this.checked;save()"> Авторский надзор</label>
+    </div>
+  </div>
+
+  <!-- ===== РАЗДЕЛЫ ПРОЕКТИРОВАНИЯ ===== -->
+  <div class="section ${activeSection==='design'?'active':''}" id="sec-design">
+    <h2 class="title">Разделы проектирования</h2>
+    <p style="font-size:12px;color:#888;margin-bottom:6px">Включите нужные разделы. Процент можно менять — стоимость перераспределится пропорционально.</p>
+    <div style="font-size:11px;color:#8BC34A;margin-bottom:14px">Сумма % включённых: <strong id="pctSum">${fmtDec(calcTotals().rawPctSum)}</strong> (нормализуется до 100% автоматически)</div>
+    ${DEFAULT_SECTIONS.map(s=>{const ds=fd.designSections[s.key]||{};return`
+      <div class="section-card" style="opacity:${ds.enabled?1:.4}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="label" style="margin:0">${s.label}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" step="0.5" min="0" style="width:60px;padding:4px 6px;text-align:center;font-size:12px;background:#222;border:1px solid #444;border-radius:4px;color:#8BC34A;font-weight:600"
+              value="${ds.pct??s.pct}" onchange="fd.designSections['${s.key}'].pct=parseFloat(this.value)||0;save();updateDynamic()">
+            <span style="font-size:11px;color:#666">%</span>
+          </div>
+        </div>
+        <div class="checks">
+          <label><input type="checkbox" ${ds.enabled?'checked':''} onchange="fd.designSections['${s.key}'].enabled=this.checked;save();render()"> Включён</label>
+          <label><input type="checkbox" ${ds.stageP?'checked':''} onchange="fd.designSections['${s.key}'].stageP=this.checked;save()"> Стадия П</label>
+          <label><input type="checkbox" ${ds.stageR?'checked':''} onchange="fd.designSections['${s.key}'].stageR=this.checked;save()"> Стадия Р</label>
+        </div>
+      </div>
+    `}).join('')}
+    <button class="btn-add" onclick="resetPcts()" style="margin-top:8px">Сбросить % по умолчанию</button>
+  </div>
+
+  <!-- ===== СТОИМОСТЬ ===== -->
+  <div class="section ${activeSection==='costs'?'active':''}" id="sec-costs">
+    <h2 class="title">Стоимость проекта</h2>
+
+    <div class="field" style="margin-bottom:20px">
+      <label class="field-label" style="font-size:14px;color:#8BC34A;margin-bottom:8px">Общая стоимость контракта с НДС (за сколько продаём), руб. *</label>
+      <input type="number" class="big-input" value="${fd.totalContractPrice||''}"
+        oninput="fd.totalContractPrice=parseFloat(this.value)||0;save();updateDynamic()"
+        placeholder="Введите сумму контракта">
+    </div>
+
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="info-box accent">
+        <div style="font-size:11px;color:#888;margin-bottom:4px">Цена за м²</div>
+        <div id="pricePerM2" style="font-size:22px;font-weight:700;color:#8BC34A">—</div>
+        <div id="pricePerM2Hint" style="font-size:11px;color:#666;margin-top:4px"></div>
+      </div>
+      <div class="info-box accent">
+        <div style="font-size:11px;color:#888;margin-bottom:4px">в т.ч. НДС 5% <span class="nds-badge">выделен</span></div>
+        <div id="ndsValue" style="font-size:22px;font-weight:700;color:#8BC34A">—</div>
+        <div id="totalWithNds" style="font-size:11px;color:#888;margin-top:4px"></div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:20px">Допстоимости (не входят в проектирование, оцениваются отдельно)</h3>
+    <div class="grid2">
+      <div class="field"><label class="field-label">АГО, руб</label>
+        <input type="number" value="${fd.costs.agoPrice||''}" oninput="fd.costs.agoPrice=parseFloat(this.value)||0;save();updateDynamic()"></div>
+      <div class="field"><label class="field-label">Изыскания, руб</label>
+        <input type="number" value="${fd.costs.engineeringPrice||''}" oninput="fd.costs.engineeringPrice=parseFloat(this.value)||0;save();updateDynamic()"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="field-label">Экспертиза, руб</label>
+        <input type="number" value="${fd.costs.expertisePrice||''}" oninput="fd.costs.expertisePrice=parseFloat(this.value)||0;save();updateDynamic()"></div>
+      <div class="field"><label class="field-label">Доп. работы, руб</label>
+        <input type="number" value="${fd.costs.additionalWorksPrice||''}" oninput="fd.costs.additionalWorksPrice=parseFloat(this.value)||0;save();updateDynamic()"></div>
+    </div>
+
+    <div class="info-box accent" id="grandTotalBox" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:11px;color:#888">ФИНАЛЬНАЯ ЦЕНА ДЛЯ ЗАКАЗЧИКА (проект + доп.)</div>
+        <div id="grandTotalValue" style="font-size:26px;font-weight:700;color:#8BC34A">—</div></div>
+        <div style="text-align:right"><div style="font-size:11px;color:#888">Допстоимости</div>
+        <div id="extrasValue" style="font-size:16px;font-weight:600;color:#ccc">—</div></div>
+      </div>
+    </div>
+
+    <div class="info-box internal" style="margin-top:14px">
+      <h4 style="color:cornflowerblue;margin-bottom:10px">Внутренняя разбивка по разделам (не видит заказчик)</h4>
+      <table class="tbl">
+        <thead><tr><th>Раздел</th><th>%</th><th>Стоимость</th><th>Себестоимость</th><th>Маржа</th></tr></thead>
+        <tbody id="costBreakdown"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== КАЛЬКУЛЯТОР ТРУДОЗАТРАТ ===== -->
+  <div class="section ${activeSection==='labor'?'active':''}" id="sec-labor">
+    <h2 class="title">Калькулятор трудозатрат</h2>
+    <div class="grid2" style="margin-bottom:16px">
+      <div class="field"><label class="field-label">Средняя ЗП сотрудника, тыс. руб/мес</label>
+        <input type="number" value="${fd.labor.avgSalary||''}" oninput="fd.labor.avgSalary=parseFloat(this.value)||0;save();updateDynamic()"></div>
+      <div class="info-box" style="padding:10px 14px">
+        <div style="font-size:11px;color:#888">Стоимость сотрудника в мес (с коэф. ${SALARY_TO_COST_COEFF})</div>
+        <div id="laborCostMonth" style="font-size:16px;font-weight:600;color:#8BC34A">—</div>
+        <div id="laborCostDay" style="font-size:11px;color:#888;margin-top:2px"></div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#888;margin-bottom:12px">Укажите количество людей и месяцев работы по каждому разделу. Система покажет, укладываетесь ли вы в бюджет.</p>
+    <div id="laborTable"></div>
+  </div>
+
+  <!-- ===== СРОКИ ===== -->
+  <div class="section ${activeSection==='schedules'?'active':''}" id="sec-schedules">
+    <h2 class="title">Сроки (календарные дни)</h2>
+    <div class="grid2">
+      <div class="field"><label class="field-label">АГО</label>
+        <input type="number" value="${fd.schedules.agoDays||''}" oninput="fd.schedules.agoDays=parseInt(this.value)||0;save()"></div>
+      <div class="field"><label class="field-label">Изыскания</label>
+        <input type="number" value="${fd.schedules.engineeringDays||''}" oninput="fd.schedules.engineeringDays=parseInt(this.value)||0;save()"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="field-label">Стадия П</label>
+        <input type="number" value="${fd.schedules.stagePDays||''}" oninput="fd.schedules.stagePDays=parseInt(this.value)||0;save()"></div>
+      <div class="field"><label class="field-label">Экспертиза</label>
+        <input type="number" value="${fd.schedules.expertiseDays||''}" oninput="fd.schedules.expertiseDays=parseInt(this.value)||0;save()"></div>
+    </div>
+    <div class="field" style="max-width:400px"><label class="field-label">Стадия Р</label>
+      <input type="number" value="${fd.schedules.stageRDays||''}" oninput="fd.schedules.stageRDays=parseInt(this.value)||0;save()"></div>
+  </div>
+
+  <!-- ===== ОПЛАТА И ГРАФИК ===== -->
+  <div class="section ${activeSection==='payment'?'active':''}" id="sec-payment">
+    <h2 class="title">Порядок оплаты</h2>
+    <div id="paymentsList"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+      <button class="btn-add" onclick="addPayment()">Добавить этап</button>
+      <span id="pctTotal" style="font-size:12px;color:#888"></span>
+    </div>
+    <h3 style="margin-top:24px">График поступления платежей</h3>
+    <div id="paymentTimeline"></div>
+  </div>
+
+  <!-- ===== ГАП ===== -->
+  <div class="section ${activeSection==='gap'?'active':''}" id="sec-gap">
+    <h2 class="title">Главный архитектор проекта (ГАП)</h2>
+    <div class="field"><label class="field-label">Выберите ГАП</label>
+      <select onchange="fd.gapName=this.value;save()"><option value="">Не выбран</option>${optSel(GAP_OPTIONS,fd.gapName)}</select></div>
+  </div>
+
+  <!-- ===== ЧТО НЕ ВХОДИТ ===== -->
+  <div class="section ${activeSection==='exclusions'?'active':''}" id="sec-exclusions">
+    <h2 class="title">Что не входит в стоимость</h2>
+    <div id="excl-list"></div>
+    <button class="btn-add" onclick="addExcl()" style="margin-top:10px">Добавить исключение</button>
+  </div>
+
+  <!-- ===== ВНУТРЕННЯЯ АНАЛИТИКА ===== -->
+  <div class="section ${activeSection==='analytics'?'active':''}" id="sec-analytics">
+    <h2 class="title">Внутренняя аналитика</h2>
+    <p style="font-size:12px;color:#888;margin-bottom:16px">Эта информация видна только при заполнении. Заказчик её не увидит.</p>
+    <div class="field" style="margin-bottom:20px"><label class="field-label">Внутренние примечания (не видит заказчик)</label>
+      <textarea style="height:100px" oninput="fd.internalNotes=this.value;save()" placeholder="Заметки: договорённости, скидки, особенности проекта...">${fd.internalNotes||''}</textarea></div>
+    <div id="analyticsContent"></div>
+  </div>
+
+  <!-- ===== ИСТОРИЯ ПРОЕКТОВ ===== -->
+  <div class="section ${activeSection==='history'?'active':''}" id="sec-history">
+    <h2 class="title">История проектов</h2>
+    <p style="font-size:12px;color:#888;margin-bottom:16px">Сохранённые КП для сравнения и шаблонов. Нажмите на проект, чтобы загрузить его данные.</p>
+    <button class="btn btn-primary btn-sm" onclick="saveToHistory()" style="margin-bottom:16px">Сохранить текущее КП в историю</button>
+    <div id="historyList"></div>
+    <div id="historyComparison" style="margin-top:16px"></div>
+  </div>
+
+  <!-- ===== ФОРМИРОВАНИЕ КП ===== -->
+  <div class="section ${activeSection==='generate'?'active':''}" id="sec-generate">
+    <h2 class="title">Сформировать документы</h2>
+
+    <div class="info-box accent" style="margin-bottom:20px" id="genSummary">
+      <h4 style="color:#8BC34A;margin-bottom:10px">Сводка перед генерацией</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+        <div class="info-row"><span class="lbl">Проект</span><span class="val">${esc(fd.projectName)||'<span style=color:#f44336>не указан</span>'}</span></div>
+        <div class="info-row"><span class="lbl">Заказчик</span><span class="val">${esc(fd.customerName)||'<span style=color:#f44336>не указан</span>'}</span></div>
+        <div class="info-row"><span class="lbl">Номер КП</span><span class="val">${fd.kpNumber||'—'} (v${fd.kpVersion||1})</span></div>
+        <div class="info-row"><span class="lbl">Дата / срок действия</span><span class="val">${new Date(fd.kpDate).toLocaleDateString('ru-RU')} (${fd.validityDays||30} дн.)</span></div>
+        <div class="info-row"><span class="lbl">Финальная цена</span><span class="val big">${fmt(t.grandTotal)} ₽</span></div>
+        <div class="info-row"><span class="lbl">в т.ч. НДС 5%</span><span class="val">${fmt(t.nds)} ₽</span></div>
+        <div class="info-row"><span class="lbl">Маржа</span><span class="val green">${fmtDec(t.margin)}%</span></div>
+        <div class="info-row"><span class="lbl">Цена за м²</span><span class="val">${fd.totalArea>0?fmt(t.pricePerM2)+' ₽/м²':'—'}</span></div>
+        <div class="info-row"><span class="lbl">ГАП</span><span class="val">${fd.gapName||'<span style=color:#ff9800>не выбран</span>'}</span></div>
+        <div class="info-row"><span class="lbl">Сумма % оплат</span><span class="val" style="color:${Math.abs(fd.payments.reduce((a,p)=>a+p.pct,0)-100)<0.1?'#8BC34A':'#f44336'}">${fmtDec(fd.payments.reduce((a,p)=>a+p.pct,0))}%</span></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="info-box accent" style="cursor:pointer" onclick="generateClientKP()">
+        <div style="font-size:28px;margin-bottom:8px">📄</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">КП для заказчика</div>
+        <div style="font-size:12px;color:#888">Стоимость, сроки, оплата, НДС 5%<br>Без внутренних данных</div>
+      </div>
+      <div class="info-box internal" style="cursor:pointer" onclick="generateInternalBudget()">
+        <div style="font-size:28px;margin-bottom:8px">📊</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">Внутренний бюджет</div>
+        <div style="font-size:12px;color:#888">Разбивка по разделам, себестоимость<br>Маржинальность, бюджет на раздел</div>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <button class="btn btn-blue" onclick="exportExcel()">📥 Экспорт бюджета в CSV (Excel)</button>
+    </div>
+    <button class="btn btn-secondary" onclick="clearAll()" style="margin-top:16px">Очистить форму</button>
+  </div>
+  `;
+
+  renderExclusions();
+  updateDynamic();
+}
+
+// ========== PAYMENTS ==========
+function renderPayments(){
+  const el=document.getElementById('paymentsList');if(!el)return;
+  el.innerHTML=fd.payments.map((p,i)=>
+    `<div class="payment-card">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">
+        <div style="flex:0 0 70px"><label class="field-label">%</label>
+          <input type="number" max="100" min="0" value="${p.pct||''}" style="text-align:center"
+            oninput="fd.payments[${i}].pct=parseFloat(this.value)||0;save();updateDynamic()"></div>
+        <div id="payAmt${i}" style="flex:1;font-size:13px;color:#8BC34A;font-weight:600;padding-top:18px"></div>
+        <button class="btn-remove" style="margin-top:18px" onclick="removePayment(${i})">✕</button>
+      </div>
+      <div><label class="field-label">Описание этапа</label>
+        <input type="text" value="${esc(p.desc)}" oninput="fd.payments[${i}].desc=this.value;save();updateDynamic()" placeholder="Например: После передачи проектной документации стадии П"></div>
+    </div>`
+  ).join('');
+  const pctTotalEl=document.getElementById('pctTotal');
+  if(pctTotalEl){
+    const sum=fd.payments.reduce((a,p)=>a+p.pct,0);
+    pctTotalEl.textContent=`Сумма: ${fmtDec(sum)}%`;
+    pctTotalEl.style.color=Math.abs(sum-100)<0.1?'#8BC34A':'#f44336';
+  }
+}
+function addPayment(){fd.payments.push({pct:0,desc:''});save();renderPayments()}
+function removePayment(i){fd.payments.splice(i,1);save();renderPayments();updateDynamic()}
+function resetPcts(){DEFAULT_SECTIONS.forEach(s=>{fd.designSections[s.key].pct=s.pct});save();render()}
+
+// ========== DYNAMIC UPDATES ==========
+function updateDynamic(){
+  const t=calcTotals();
+
+  // pctSum in design section
+  const ps=document.getElementById('pctSum');
+  if(ps)ps.textContent=fmtDec(t.rawPctSum);
+
+  // Price per m2
+  const pm=document.getElementById('pricePerM2');
+  if(pm){
+    pm.textContent=fd.totalArea>0&&fd.totalContractPrice>0?fmt(t.pricePerM2)+' руб/м²':'—';
+    const hint=document.getElementById('pricePerM2Hint');
+    if(hint){
+      const avg=getAvgPricePerM2();
+      if(avg>0&&t.pricePerM2>0){
+        const diff=((t.pricePerM2-avg)/avg*100);
+        hint.textContent=`Среднее по истории: ${fmt(avg)} руб/м² (${diff>0?'+':''}${fmtDec(diff)}%)`;
+        hint.style.color=Math.abs(diff)>20?'#ff9800':'#666';
+      } else hint.textContent='';
+    }
+  }
+
+  // NDS
+  const ndsEl=document.getElementById('ndsValue');
+  if(ndsEl){
+    ndsEl.textContent=fd.totalContractPrice>0?fmt(t.nds)+' руб':'—';
+    const tw=document.getElementById('totalWithNds');
+    if(tw)tw.textContent=fd.totalContractPrice>0?`Сумма без НДС: ${fmt(t.basePrice)} руб`:'';
+  }
+
+  // Grand total
+  const gt=document.getElementById('grandTotalValue');
+  if(gt)gt.textContent=t.grandTotal>0?fmt(t.grandTotal)+' руб':'—';
+  const ex=document.getElementById('extrasValue');
+  if(ex)ex.textContent=t.extras>0?'+'+fmt(t.extras)+' руб':'0';
+
+  // Cost breakdown table
+  const cb=document.getElementById('costBreakdown');
+  if(cb){
+    cb.innerHTML=t.sectionBreakdown.filter(s=>s.enabled).map(s=>
+      `<tr><td>${s.label}</td><td class="hl">${fmtDec(s.adjPct)}%</td><td>${fmt(s.price)} ₽</td><td>${fmt(s.cost)} ₽</td><td>${fmt(s.price-s.cost)} ₽</td></tr>`
+    ).join('')+`<tr class="total"><td>Проектирование (без НДС)</td><td></td><td class="hl">${fmt(t.basePrice)} ₽</td><td>${fmt(t.totalCost)} ₽</td><td>${fmt(t.basePrice-t.totalCost)} ₽</td></tr>
+    <tr class="total"><td>в т.ч. НДС 5%</td><td></td><td>${fmt(t.nds)} ₽</td><td></td><td></td></tr>
+    ${t.extras>0?`<tr class="total"><td>Допстоимости (АГО, изыскания и др.)</td><td></td><td>${fmt(t.extras)} ₽</td><td></td><td></td></tr>`:''}
+    <tr class="total"><td>ФИНАЛЬНАЯ ЦЕНА</td><td></td><td class="hl" style="font-size:15px">${fmt(t.grandTotal)} ₽</td><td></td><td></td></tr>`;
+  }
+
+  // Labor table
+  const lt=document.getElementById('laborTable');
+  if(lt){
+    const costMonth=fd.labor.avgSalary*SALARY_TO_COST_COEFF;
+    const lm=document.getElementById('laborCostMonth');
+    if(lm)lm.textContent=fmtDec(costMonth)+' тыс. руб';
+    const ld=document.getElementById('laborCostDay');
+    if(ld)ld.textContent=`${fmtDec(costMonth/WORKING_DAYS_PER_MONTH)} тыс. руб/к.д.`;
+
+    lt.innerHTML=`<div class="labor-row header"><div>Раздел</div><div>Люди</div><div>Мес.</div><div>Затраты</div><div>Бюджет</div></div>`+
+    DEFAULT_SECTIONS.filter(s=>fd.designSections[s.key]?.enabled).map(s=>{
+      const l=calcLabor(s.key);
+      const staff=fd.labor.sectionStaff[s.key]||{people:1,months:3};
+      const hasPrice = fd.totalContractPrice > 0;
+      return `<div class="labor-row">
+        <div style="font-size:12px">${s.label}</div>
+        <div><input class="labor-input" type="number" min="1" value="${staff.people}" onchange="fd.labor.sectionStaff['${s.key}'].people=parseInt(this.value)||1;save();updateDynamic()"></div>
+        <div><input class="labor-input" type="number" min="1" value="${staff.months}" onchange="fd.labor.sectionStaff['${s.key}'].months=parseFloat(this.value)||1;save();updateDynamic()"></div>
+        <div style="font-size:12px">${fmt(l.totalCost)} ₽</div>
+        <div style="font-size:12px;color:${hasPrice?(l.ok?'#8BC34A':'#f44336'):'#666'};font-weight:600">${hasPrice?(l.ok?'OK (+'+fmt(l.diff)+')':'−'+fmt(-l.diff)):'—'}</div>
+      </div>`;
+    }).join('');
+
+    // Итого-строка
+    const enabledSections = DEFAULT_SECTIONS.filter(s=>fd.designSections[s.key]?.enabled);
+    let totalPeople=0,totalCostAll=0,totalBudgetAll=0;
+    enabledSections.forEach(s=>{
+      const st=fd.labor.sectionStaff[s.key]||{people:1,months:3};
+      totalPeople+=st.people;
+      const lb=calcLabor(s.key);
+      totalCostAll+=lb.totalCost;
+      totalBudgetAll+=lb.budgetForSection;
+    });
+    const totalDiffAll=totalBudgetAll-totalCostAll;
+    const hasP=fd.totalContractPrice>0;
+    lt.innerHTML+=`<div class="labor-row" style="border-top:2px solid #8BC34A;font-weight:700;padding-top:10px">
+      <div style="font-size:13px;color:#8BC34A">ИТОГО</div>
+      <div style="text-align:center;color:#8BC34A">${totalPeople} чел.</div>
+      <div></div>
+      <div style="font-size:12px;color:#fff">${fmt(totalCostAll)} ₽</div>
+      <div style="font-size:12px;color:${hasP?(totalDiffAll>=0?'#8BC34A':'#f44336'):'#666'};font-weight:700">${hasP?(totalDiffAll>=0?'+'+fmt(totalDiffAll):'−'+fmt(-totalDiffAll)):'—'}</div>
+    </div>`;
+  }
+
+  // Payment amounts + timeline
+  renderPayments();
+  const grandForPay = t.grandTotal;
+  fd.payments.forEach((p,i)=>{
+    const el=document.getElementById('payAmt'+i);
+    if(el&&grandForPay>0)el.textContent=fmt(grandForPay*p.pct/100)+' ₽';
+  });
+
+  const pt=document.getElementById('paymentTimeline');
+  if(pt){
+    if(grandForPay<=0){pt.innerHTML='<p style="font-size:12px;color:#666">Введите стоимость контракта</p>';}
+    else {
+      const totalDays=fd.schedules.agoDays+fd.schedules.engineeringDays+fd.schedules.stagePDays+fd.schedules.expertiseDays+fd.schedules.stageRDays;
+      const startDate=new Date(fd.kpDate||Date.now());
+      let cumPct=0;
+      let html='<div class="timeline">';
+      fd.payments.forEach((p,i)=>{
+        if(p.pct<=0)return;
+        cumPct+=p.pct;
+        const dayOffset=Math.round(totalDays*cumPct/100);
+        const d=new Date(startDate);d.setDate(d.getDate()+dayOffset);
+        html+=`<div class="tl-item">
+          <div class="tl-date">${d.toLocaleDateString('ru-RU')} — ${p.pct}% (${fmtDec(cumPct)}% накоп.)</div>
+          <div class="tl-desc">${esc(p.desc)}</div>
+          <div class="tl-amount">${fmt(grandForPay*p.pct/100)} руб</div>
+        </div>`;
+      });
+      html+='</div>';
+      pt.innerHTML=html;
+    }
+  }
+
+  // Analytics
+  const ac=document.getElementById('analyticsContent');
+  if(ac){
+    const avg=getAvgPricePerM2();
+    ac.innerHTML=`
+      <div class="grid2">
+        <div class="info-box">
+          <h4>Финансовые показатели</h4>
+          <div class="info-row"><span class="lbl">Проектирование (с НДС)</span><span class="val big">${fmt(t.totalWithNds)} ₽</span></div>
+          <div class="info-row"><span class="lbl">в т.ч. НДС 5%</span><span class="val">${fmt(t.nds)} ₽</span></div>
+          <div class="info-row"><span class="lbl">Допстоимости</span><span class="val">${fmt(t.extras)} ₽</span></div>
+          <div class="info-row"><span class="lbl">Финальная цена</span><span class="val green">${fmt(t.grandTotal)} ₽</span></div>
+          <div class="info-row"><span class="lbl">Себестоимость (коэф. ${COST_COEFFICIENT})</span><span class="val">${fmt(t.totalCost)} ₽</span></div>
+          <div class="info-row"><span class="lbl">Маржа проектирования</span><span class="val green">${fmt(t.basePrice-t.totalCost)} ₽ (${fmtDec(t.margin)}%)</span></div>
+          <div class="info-row"><span class="lbl">Цена за м² (с НДС)</span><span class="val">${fd.totalArea>0?fmt(t.pricePerM2)+' ₽/м²':'—'}</span></div>
+        </div>
+        <div class="info-box">
+          <h4>Сравнение с историей</h4>
+          ${history.length>0?`
+            <div class="info-row"><span class="lbl">Проектов в базе</span><span class="val">${history.length}</span></div>
+            <div class="info-row"><span class="lbl">Средняя цена за м²</span><span class="val">${avg>0?fmt(avg)+' ₽/м²':'—'}</span></div>
+            <div class="info-row"><span class="lbl">Текущая цена за м²</span><span class="val">${fd.totalArea>0?fmt(t.pricePerM2)+' ₽/м²':'—'}</span></div>
+            ${t.pricePerM2>0&&avg>0?`<div class="info-row"><span class="lbl">Отклонение</span><span class="val">${fmtDec((t.pricePerM2-avg)/avg*100)}%</span></div>`:''}
+          `:'<p style="font-size:12px;color:#666">Сохраните первое КП в историю для сравнения</p>'}
+        </div>
+      </div>
+      <div class="info-box" style="margin-top:14px">
+        <h4>Бюджет по разделам</h4>
+        <table class="tbl"><thead><tr><th>Раздел</th><th>Бюджет (себестоимость)</th><th>Доля</th></tr></thead>
+        <tbody>${t.sectionBreakdown.filter(s=>s.enabled).map(s=>
+          `<tr><td>${s.label}</td><td>${fmt(s.cost)} ₽</td><td>${fmtDec(s.adjPct)}%</td></tr>`
+        ).join('')}
+        <tr class="total"><td>ИТОГО</td><td class="hl">${fmt(t.totalCost)} ₽</td><td>100%</td></tr></tbody></table>
+      </div>
+    `;
+  }
+
+  renderHistory();
+}
+
+// ========== EXCLUSIONS ==========
+function renderExclusions(){
+  const el=document.getElementById('excl-list');if(!el)return;
+  el.innerHTML=fd.exclusions.map((v,i)=>
+    `<div class="excl-row"><input type="text" value="${v}" oninput="fd.exclusions[${i}]=this.value;save()">
+    <button class="btn-remove" onclick="removeExcl(${i})">✕</button></div>`
+  ).join('');
+}
+function addExcl(){fd.exclusions.push('');save();renderExclusions()}
+function removeExcl(i){fd.exclusions.splice(i,1);save();renderExclusions()}
+
+// ========== HISTORY ==========
+function getAvgPricePerM2(){
+  const valid=history.filter(h=>h.totalArea>0&&h.price>0);
+  if(!valid.length)return 0;
+  return valid.reduce((a,h)=>a+h.price/h.totalArea,0)/valid.length;
+}
+
+function saveToHistory(){
+  if(!fd.projectName){alert('Введите название проекта');return}
+  history.push({
+    id:Date.now(), name:fd.projectName, customer:fd.customerName, date:fd.kpDate,
+    objectType:fd.objectType, totalArea:fd.totalArea, price:fd.totalContractPrice,
+    pricePerM2:fd.totalArea>0?fd.totalContractPrice/fd.totalArea:0,
+    data:JSON.parse(JSON.stringify(fd))
+  });
+  saveHistory();
+  alert('КП сохранено в историю');
+  updateDynamic();
+}
+
+function renderHistory(){
+  const el=document.getElementById('historyList');if(!el)return;
+  if(!history.length){el.innerHTML='<p style="font-size:12px;color:#666">История пуста</p>';return}
+  el.innerHTML=history.map((h,i)=>
+    `<div class="hist-card" onclick="loadFromHistory(${i})">
+      <div style="display:flex;justify-content:space-between">
+        <div class="name">${h.name}</div>
+        <button class="btn-remove btn-sm" onclick="event.stopPropagation();removeHistory(${i})" style="padding:4px 8px;font-size:10px">✕</button>
+      </div>
+      <div class="meta">${h.customer||''} • ${h.objectType||''} • ${h.date||''}</div>
+      <div class="price">${fmt(h.price)} ₽ ${h.totalArea>0?'• '+fmt(h.price/h.totalArea)+' ₽/м² • '+fmt(h.totalArea)+' м²':''}</div>
+    </div>`
+  ).join('');
+}
+
+function loadFromHistory(i){
+  if(!confirm('Загрузить данные проекта "'+history[i].name+'"? Текущие данные будут заменены.'))return;
+  fd=JSON.parse(JSON.stringify(history[i].data));
+  save();render();
+}
+function removeHistory(i){history.splice(i,1);saveHistory();updateDynamic()}
+
+// ========== GENERATE ==========
+function generateClientKP(){
+  const t=calcTotals();
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>КП — ${esc(fd.projectName)} — ГИП ФОРМАТ</title>
+  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;background:#111;color:#fff;padding:40px}
+  .page{max-width:800px;margin:0 auto;background:#1a1a1a;border-radius:16px;padding:40px;margin-bottom:24px}
+  h1{color:#8BC34A;font-size:28px;margin-bottom:8px}h2{color:#8BC34A;font-size:20px;margin-bottom:16px}
+  .sub{color:#999;font-size:14px;margin-bottom:24px}
+  .tbl{width:100%;border-collapse:collapse;margin:16px 0}.tbl th{background:#222;color:#8BC34A;padding:10px 14px;text-align:left;font-size:12px}
+  .tbl td{padding:10px 14px;border-bottom:1px solid #333;font-size:13px;color:#ccc}.tbl .total td{font-weight:700;color:#fff;background:rgba(139,195,74,.1)}
+  .hl{color:#8BC34A;font-weight:700}.box{background:#222;border-radius:10px;padding:20px;margin:16px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.meta{font-size:12px;color:#888;margin-top:4px}
+  @media print{body{background:#fff;color:#000;padding:20px}.page{background:#fff;border:1px solid #ddd}
+  .tbl th{background:#f0f0f0;color:#333}.tbl td{color:#333;border-color:#ddd}.tbl .total td{background:#f9f9f9}
+  .hl{color:#2e7d32}.box{background:#f9f9f9;border:1px solid #ddd}h1,h2{color:#2e7d32}.sub,.meta{color:#666}}
+  </style></head><body>
+  <div class="page">
+    <h1>Коммерческое предложение${fd.kpNumber?' '+esc(fd.kpNumber):''}${fd.kpVersion>1?' (v'+fd.kpVersion+')':''}</h1>
+    <div class="sub">${esc(fd.projectName)} • ${esc(fd.customerName)}</div>
+    <div class="grid2">
+      <div class="box"><div style="font-size:11px;color:#888">Компания</div><div style="font-size:15px;font-weight:600">ГИП ФОРМАТ</div></div>
+      <div class="box"><div style="font-size:11px;color:#888">Дата</div><div style="font-size:15px;font-weight:600">${new Date(fd.kpDate).toLocaleDateString('ru-RU')}</div></div>
+    </div>
+    <div style="font-size:12px;color:#999;margin-top:8px">Предложение действительно в течение ${fd.validityDays||30} календарных дней с даты формирования.</div>
+  </div>
+  <div class="page">
+    <h2>Параметры объекта</h2>
+    <table class="tbl">
+      <tr><td>Тип объекта</td><td class="hl">${esc(fd.objectType)}</td></tr>
+      <tr><td>Адрес</td><td>${esc(fd.objectAddress)}</td></tr>
+      <tr><td>Общая площадь</td><td class="hl">${fmt(fd.totalArea)} м²</td></tr>
+      <tr><td>Этажность</td><td>${esc(fd.floorsCount)}</td></tr>
+      ${fd.sectionsCount?`<tr><td>Секций</td><td>${fd.sectionsCount}</td></tr>`:''}
+      ${fd.apartmentsCount?`<tr><td>Квартир</td><td>${fd.apartmentsCount}</td></tr>`:''}
+    </table>
+  </div>
+  <div class="page">
+    <h2>Стоимость работ</h2>
+    <table class="tbl">
+      <thead><tr><th>Этап работ</th><th>Стоимость, руб.</th></tr></thead>
+      <tbody>
+        <tr><td>Проектирование (с НДС 5%)</td><td class="hl">${fmt(t.totalWithNds)}</td></tr>
+        ${fd.costs.agoPrice?`<tr><td>АГО</td><td class="hl">${fmt(fd.costs.agoPrice)}</td></tr>`:''}
+        ${fd.costs.engineeringPrice?`<tr><td>Инженерные изыскания</td><td class="hl">${fmt(fd.costs.engineeringPrice)}</td></tr>`:''}
+        ${fd.costs.expertisePrice?`<tr><td>Экспертиза</td><td class="hl">${fmt(fd.costs.expertisePrice)}</td></tr>`:''}
+        ${fd.costs.additionalWorksPrice?`<tr><td>Дополнительные работы</td><td class="hl">${fmt(fd.costs.additionalWorksPrice)}</td></tr>`:''}
+        <tr class="total"><td style="font-size:15px">ИТОГО</td><td class="hl" style="font-size:17px">${fmt(t.grandTotal)}</td></tr>
+        <tr class="total"><td>в т.ч. НДС 5% (проектирование)</td><td>${fmt(t.nds)}</td></tr>
+      </tbody>
+    </table>
+    ${fd.totalArea>0?`<div class="meta">Стоимость проектирования за м²: ${fmt(t.pricePerM2)} руб/м²</div>`:''}
+  </div>
+  <div class="page">
+    <h2>Сроки выполнения</h2>
+    <table class="tbl">
+      ${fd.schedules.agoDays?`<tr><td>АГО</td><td class="hl">${fd.schedules.agoDays} к.д.</td></tr>`:''}
+      ${fd.schedules.engineeringDays?`<tr><td>Изыскания</td><td class="hl">${fd.schedules.engineeringDays} к.д.</td></tr>`:''}
+      ${fd.schedules.stagePDays?`<tr><td>Стадия П</td><td class="hl">${fd.schedules.stagePDays} к.д.</td></tr>`:''}
+      ${fd.schedules.expertiseDays?`<tr><td>Экспертиза</td><td class="hl">${fd.schedules.expertiseDays} к.д.</td></tr>`:''}
+      ${fd.schedules.stageRDays?`<tr><td>Стадия Р</td><td class="hl">${fd.schedules.stageRDays} к.д.</td></tr>`:''}
+    </table>
+  </div>
+  <div class="page">
+    <h2>Порядок оплаты</h2>
+    <table class="tbl">
+      <thead><tr><th>Этап</th><th>%</th><th>Сумма, руб.</th></tr></thead>
+      <tbody>
+        ${fd.payments.filter(p=>p.pct>0).map(p=>
+          `<tr><td>${esc(p.desc)}</td><td class="hl">${p.pct}%</td><td>${fmt(t.grandTotal*p.pct/100)}</td></tr>`
+        ).join('')}
+      </tbody>
+    </table>
+  </div>
+  ${fd.exclusions.filter(e=>e).length?`<div class="page"><h2>Что не входит в стоимость</h2><ul style="padding-left:20px">${fd.exclusions.filter(e=>e).map(e=>`<li style="margin-bottom:6px;color:#ccc">${esc(e)}</li>`).join('')}</ul></div>`:''}
+  </body></html>`);
+  w.document.close();
+}
+
+function generateInternalBudget(){
+  const t=calcTotals();
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Внутренний бюджет — ${esc(fd.projectName)}</title>
+  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;background:#0a0a2e;color:#fff;padding:40px}
+  .page{max-width:900px;margin:0 auto;background:#12123a;border-radius:16px;padding:32px;margin-bottom:20px;border:1px solid #2a2a5a}
+  h1{color:cornflowerblue;font-size:24px;margin-bottom:6px}h2{color:cornflowerblue;font-size:18px;margin-bottom:14px}
+  .sub{color:#888;font-size:13px;margin-bottom:20px}
+  .tbl{width:100%;border-collapse:collapse;margin:14px 0}.tbl th{background:#1a1a4a;color:cornflowerblue;padding:9px 12px;text-align:left;font-size:11px}
+  .tbl td{padding:9px 12px;border-bottom:1px solid #2a2a5a;font-size:12px;color:#ccc}.tbl .total td{font-weight:700;color:#fff;background:rgba(100,149,237,.1)}
+  .hl{color:cornflowerblue;font-weight:700}.warn{color:#f44336}.ok{color:#8BC34A}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px}
+  .box{background:#1a1a4a;border-radius:10px;padding:16px;text-align:center}
+  .box .num{font-size:22px;font-weight:700;color:cornflowerblue}.box .lbl{font-size:10px;color:#888;margin-top:4px}
+  @media print{body{background:#fff;color:#000;padding:20px}.page{background:#fff;border:1px solid #ddd}
+  .tbl th{background:#e8e8f8;color:#333}.tbl td{color:#333;border-color:#ddd}.hl{color:#1a5276}.box{background:#f0f0ff;border:1px solid #ddd}.box .num{color:#1a5276}h1,h2{color:#1a5276}}
+  </style></head><body>
+  <div class="page">
+    <h1>ВНУТРЕННИЙ БЮДЖЕТ ПРОЕКТА${fd.kpNumber?' '+esc(fd.kpNumber):''}${fd.kpVersion>1?' (v'+fd.kpVersion+')':''}</h1>
+    <div class="sub">${esc(fd.projectName)} • ${esc(fd.customerName)} • ${new Date(fd.kpDate).toLocaleDateString('ru-RU')}</div>
+    ${fd.internalNotes?`<div style="background:#1a1a4a;border:1px solid #4a4a8a;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#bbb"><strong style="color:cornflowerblue">Примечания:</strong> ${esc(fd.internalNotes)}</div>`:''}
+    <div class="grid4">
+      <div class="box"><div class="num">${fmt(t.grandTotal)}</div><div class="lbl">Финальная цена, ₽</div></div>
+      <div class="box"><div class="num">${fmt(t.basePrice)}</div><div class="lbl">Проект без НДС, ₽</div></div>
+      <div class="box"><div class="num">${fmt(t.totalCost)}</div><div class="lbl">Себестоимость, ₽</div></div>
+      <div class="box"><div class="num">${fmtDec(t.margin)}%</div><div class="lbl">Маржинальность</div></div>
+    </div>
+  </div>
+  <div class="page">
+    <h2>Бюджет по разделам проектирования</h2>
+    <table class="tbl">
+      <thead><tr><th>Раздел</th><th>%</th><th>Цена для заказчика</th><th>Бюджет (себестоимость)</th><th>Маржа</th><th>Трудозатраты</th><th>Статус</th></tr></thead>
+      <tbody>
+        ${t.sectionBreakdown.filter(s=>s.enabled).map(s=>{
+          const l=calcLabor(s.key);
+          return `<tr><td>${s.label}</td><td>${fmtDec(s.adjPct)}%</td><td>${fmt(s.price)} ₽</td><td class="hl">${fmt(s.cost)} ₽</td><td>${fmt(s.price-s.cost)} ₽</td><td>${fmt(l.totalCost)} ₽</td><td class="${l.ok?'ok':'warn'}">${l.ok?'В бюджете':'Превышение!'}</td></tr>`;
+        }).join('')}
+        <tr class="total"><td>ИТОГО проектирование</td><td></td><td>${fmt(t.basePrice)} ₽</td><td class="hl">${fmt(t.totalCost)} ₽</td><td>${fmt(t.basePrice-t.totalCost)} ₽</td><td></td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="page">
+    <h2>Сводка</h2>
+    <table class="tbl">
+      <tr><td>Площадь объекта</td><td class="hl">${fmt(fd.totalArea)} м²</td></tr>
+      <tr><td>Проектирование (с НДС)</td><td class="hl">${fmt(t.totalWithNds)} ₽</td></tr>
+      <tr><td>в т.ч. НДС 5%</td><td>${fmt(t.nds)} ₽</td></tr>
+      ${t.extras>0?`<tr><td>Допстоимости (АГО, изыскания и др.)</td><td>${fmt(t.extras)} ₽</td></tr>`:''}
+      <tr><td>Финальная цена</td><td class="hl">${fmt(t.grandTotal)} ₽</td></tr>
+      <tr><td>Цена за м²</td><td class="hl">${fd.totalArea>0?fmt(t.pricePerM2)+' руб/м²':'—'}</td></tr>
+      <tr><td>Коэф. затрат</td><td>${COST_COEFFICIENT}</td></tr>
+      <tr><td>Средняя ЗП (с коэф. ${SALARY_TO_COST_COEFF})</td><td>${fmtDec(fd.labor.avgSalary*SALARY_TO_COST_COEFF)} тыс. руб/мес</td></tr>
+    </table>
+  </div>
+  </body></html>`);
+  w.document.close();
+}
+
+function exportExcel(){
+  const t=calcTotals();
+  let csv='\uFEFF"Раздел";"%";"Цена для заказчика";"Себестоимость";"Маржа";"Трудозатраты";"Статус"\n';
+  t.sectionBreakdown.filter(s=>s.enabled).forEach(s=>{
+    const l=calcLabor(s.key);
+    csv+='"'+s.label+'";"'+fmtDec(s.adjPct)+'";"'+fmt(s.price)+'";"'+fmt(s.cost)+'";"'+fmt(s.price-s.cost)+'";"'+fmt(l.totalCost)+'";"'+(l.ok?'В бюджете':'Превышение')+'"\n';
+  });
+  csv+='"ИТОГО";"";"'+fmt(t.basePrice)+'";"'+fmt(t.totalCost)+'";"'+fmt(t.basePrice-t.totalCost)+'";"";""'+'\n';
+  csv+='\n"НДС 5%";"";"'+fmt(t.nds)+'"\n"Проектирование с НДС";"";"'+fmt(t.totalWithNds)+'"\n';
+  csv+='"Допстоимости";"";"'+fmt(t.extras)+'"\n"Финальная цена";"";"'+fmt(t.grandTotal)+'"\n';
+  csv+='"Маржинальность";"";"'+fmtDec(t.margin)+'%"\n"Цена за м²";"";"'+(fd.totalArea>0?fmt(t.pricePerM2):'—')+'"\n';
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Бюджет_'+(fd.projectName||'проект')+'_'+fd.kpDate+'.csv';
+  a.click();
+}
+
+function clearAll(){
+  if(!confirm('Очистить все данные формы?'))return;
+  localStorage.removeItem('kpFormV3');
+  location.reload();
+}
+
+// ========== INIT ==========
+renderNav();
+render();
+</script>
+</body>
+</html>
