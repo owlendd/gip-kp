@@ -335,7 +335,7 @@ function render(){
     <div class="field"><label class="field-label">Назначение</label>
       <textarea oninput="fd.objectPurpose=this.value;save()">${fd.objectPurpose}</textarea></div>
     <div class="grid2">
-      <div class="field"><label class="field-label">Общая площадь, м²</label>
+      <div class="field"><label class="field-label">Продаваемая площадь, м²</label>
         <input type="number" value="${fd.totalArea||''}" oninput="fd.totalArea=parseFloat(this.value)||0;save();updateDynamic()"></div>
       <div class="field"><label class="field-label">Этажность</label>
         <input type="text" value="${fd.floorsCount}" oninput="fd.floorsCount=this.value;save()"></div>
@@ -1068,11 +1068,17 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 @page{size:A4;margin:0}
 .page{width:var(--page-width);height:var(--page-height);margin:20px auto;background:var(--bg-dark);position:relative;overflow:hidden;page-break-after:always;page-break-inside:avoid}
 @media print{body{background:none}.page{margin:0;box-shadow:none}}
-.cover{display:flex;flex-direction:column;justify-content:space-between;padding:0;height:100%}
+.cover{display:flex;flex-direction:column;justify-content:space-between;padding:0;height:100%;background:var(--bg-dark);background-image:
+  linear-gradient(135deg, rgba(139,195,74,0.03) 0%, transparent 50%),
+  repeating-linear-gradient(45deg, transparent, transparent 80px, rgba(139,195,74,0.02) 80px, rgba(139,195,74,0.02) 82px),
+  repeating-linear-gradient(-45deg, transparent, transparent 80px, rgba(139,195,74,0.02) 80px, rgba(139,195,74,0.02) 82px);position:relative;overflow:hidden}
+.cover::before{content:'';position:absolute;right:-60px;top:50%;transform:translateY(-50%) rotate(15deg);width:280px;height:280px;border:2px solid rgba(139,195,74,0.06);border-radius:20px}
+.cover::after{content:'';position:absolute;right:40px;top:55%;transform:translateY(-50%) rotate(-10deg);width:200px;height:200px;border:2px solid rgba(139,195,74,0.04);border-radius:20px}
 .cover-top{padding:40px 50px;display:flex;justify-content:space-between;align-items:center}
 .logo-block{display:flex;align-items:center;gap:12px}.logo-block img{height:36px;width:auto}
 .logo-text{font-size:16px;font-weight:700;letter-spacing:1px}.logo-text span{color:var(--green-primary)}
-.cover-badge{display:inline-block;border:1px solid var(--green-primary);color:var(--green-primary);padding:6px 18px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:2px;text-transform:uppercase}
+.cover-badge{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(139,195,74,0.3);color:var(--green-primary);padding:8px 20px;border-radius:24px;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase}
+.cover-badge::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--green-primary);flex-shrink:0}
 .cover-center{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 50px}
 .cover-label{color:var(--green-primary);font-size:12px;font-weight:500;letter-spacing:3px;text-transform:uppercase;margin-bottom:20px}.cover-label::before{content:'—  '}
 .cover-title{font-size:42px;font-weight:800;line-height:1.15;margin-bottom:24px;max-width:85%}.cover-title .highlight{color:var(--green-primary)}
@@ -1133,6 +1139,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .payment-step{flex:1;background:var(--bg-card);border-radius:14px;padding:22px;border:1px solid var(--border-color);text-align:center}
 .payment-step .pct{font-size:32px;font-weight:800;color:var(--green-primary);margin-bottom:6px}
 .payment-step .label{font-size:12px;color:var(--text-gray);line-height:1.5}
+.payment-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.payment-card-kp{background:var(--bg-card);border-radius:14px;padding:24px;border:1px solid var(--border-color);position:relative}
+.payment-card-num{font-size:10px;color:var(--text-gray);font-weight:600;letter-spacing:1px;margin-bottom:8px}
+.payment-card-pct{font-size:36px;font-weight:800;color:var(--green-primary);margin-bottom:4px}
+.payment-card-sum{font-size:14px;font-weight:600;color:var(--text-white);margin-bottom:8px}
+.payment-card-desc{font-size:12px;color:var(--text-gray);line-height:1.5}
 .timeline{position:relative;padding-left:30px}.timeline::before{content:'';position:absolute;left:6px;top:0;bottom:0;width:2px;background:var(--border-color)}
 .timeline-item{position:relative;margin-bottom:24px;padding-left:30px}
 .timeline-item::before{content:'';position:absolute;left:-30px;top:6px;width:14px;height:14px;background:var(--green-primary);border-radius:50%;border:3px solid var(--bg-dark)}
@@ -1214,7 +1226,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">02 / 11</div>
+    <div class="page-number">02 / 14</div>
   </div>
   <div class="page-content">
     <div class="section-label">О компании</div>
@@ -1239,7 +1251,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">03 / 11</div>
+    <div class="page-number">03 / 14</div>
   </div>
   <div class="page-content">
     <div class="section-label">Наш подход</div>
@@ -1260,7 +1272,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">04 / 11</div>
+    <div class="page-number">04 / 14</div>
   </div>
   <div class="page-content">
     <div class="section-label">Услуги</div>
@@ -1274,11 +1286,21 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
       <div class="service-card"><div class="num">05</div><div class="service-card-icon">🔍</div><h3>Инженерные изыскания</h3><p>Полный комплекс изысканий: геология, геодезия, экология, гидрометеорология</p></div>
       <div class="service-card"><div class="num">06</div><div class="service-card-icon">✓</div><h3>Авторский надзор</h3><p>Сопровождение проектов на всех этапах реализации строительного объекта</p></div>
     </div>
-    <div style="margin-top:24px;">
-      <div class="section-label" style="margin-bottom:12px;">Для данного проекта предлагаем</div>
-      <table class="data-table"><thead><tr><th>№</th><th>Услуга</th><th>Стадия</th><th>Включено</th></tr></thead>
-      <tbody>${servicesRows.join('')}</tbody></table>
-    </div>
+  </div>
+</div>
+
+<!-- PAGE 4b: PROJECT SERVICES -->
+<div class="page">
+  <div class="page-header">
+    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
+    <div class="page-number">05 / 14</div>
+  </div>
+  <div class="page-content">
+    <div class="section-label">Для данного проекта</div>
+    <h2 class="section-title">Предлагаемые услуги<br>и состав работ</h2>
+    <p class="section-description">Перечень работ, включённых в коммерческое предложение для вашего объекта.</p>
+    <table class="data-table"><thead><tr><th>№</th><th>Услуга</th><th>Стадия</th><th>Включено</th></tr></thead>
+    <tbody>${servicesRows.join('')}</tbody></table>
   </div>
 </div>
 
@@ -1286,7 +1308,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">05 / 11</div>
+    <div class="page-number">06 / 14</div>
   </div>
   <div class="page-content">
     <div class="section-label">Параметры объекта</div>
@@ -1297,7 +1319,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
       <div class="tep-card full"><div class="tep-card-label">Адрес</div><div class="tep-card-value">${esc(fd.objectAddress||'—')}</div></div>
       <div class="tep-card"><div class="tep-card-label">Тип объекта</div><div class="tep-card-value">${esc(fd.objectType||'—')}</div></div>
       <div class="tep-card"><div class="tep-card-label">Назначение</div><div class="tep-card-value">${esc(fd.objectPurpose||fd.objectType||'—')}</div></div>
-      <div class="tep-card accent"><div class="tep-card-label">Общая площадь</div><div class="tep-card-value">${fmt(fd.totalArea)} м²</div></div>
+      <div class="tep-card accent"><div class="tep-card-label">Продаваемая площадь</div><div class="tep-card-value">${fmt(fd.totalArea)} м²</div></div>
       <div class="tep-card"><div class="tep-card-label">Этажность</div><div class="tep-card-value">${esc(fd.floorsCount||'—')} этажей</div></div>
       ${fd.sectionsCount?`<div class="tep-card"><div class="tep-card-label">Количество секций</div><div class="tep-card-value">${fd.sectionsCount} секций</div></div>`:''}
       ${fd.apartmentsCount?`<div class="tep-card"><div class="tep-card-label">Количество квартир</div><div class="tep-card-value">${fd.apartmentsCount} квартир</div></div>`:''}
@@ -1306,11 +1328,21 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
       ${fd.showParking&&fd.parkingArea?`<div class="tep-card"><div class="tep-card-label">Площадь паркинга</div><div class="tep-card-value">${fmt(fd.parkingArea)} м²</div></div>`:''}
       ${fd.showCommercial&&fd.commercialArea?`<div class="tep-card"><div class="tep-card-label">Площадь коммерческих помещений</div><div class="tep-card-value">${fmt(fd.commercialArea)} м²</div></div>`:''}
     </div>
-    <div style="margin-top:24px;">
-      <div class="section-label" style="margin-bottom:10px;">Состав проектирования</div>
-      <table class="data-table"><thead><tr><th>Раздел</th><th>Шифр</th><th>Стадия П</th><th>Стадия Р</th></tr></thead>
-      <tbody>${designRowsHtml}</tbody></table>
-    </div>
+  </div>
+</div>
+
+<!-- PAGE 5b: DESIGN COMPOSITION -->
+<div class="page">
+  <div class="page-header">
+    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
+    <div class="page-number">07 / 14</div>
+  </div>
+  <div class="page-content">
+    <div class="section-label">Состав проектирования</div>
+    <h2 class="section-title">Разделы проектной<br>и рабочей документации</h2>
+    <p class="section-description">Перечень разделов, включённых в состав проектирования по данному объекту.</p>
+    <table class="data-table"><thead><tr><th>Раздел</th><th>Шифр</th><th>Стадия П</th><th>Стадия Р</th></tr></thead>
+    <tbody>${designRowsHtml}</tbody></table>
   </div>
 </div>
 
@@ -1318,7 +1350,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">06 / 11</div>
+    <div class="page-number">08 / 14</div>
   </div>
   <div class="page-content">
     <div class="section-label">Этапы работ</div>
@@ -1342,7 +1374,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">07 / 11</div>
+    <div class="page-number">09 / 14</div>
   </div>
   <div class="page-content">
     <div class="section-label">Стоимость</div>
@@ -1354,9 +1386,30 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
       <div class="cost-card primary"><div class="cost-card-label">Итого стоимость</div><div class="cost-card-value">${fmt(t.grandTotal)} ₽</div><div class="cost-card-note">в т.ч. НДС 5% — ${fmt(t.nds)} ₽</div></div>
       <div class="cost-card"><div class="cost-card-label">Стоимость за м²</div><div class="cost-card-value" style="color:var(--green-primary);">${fd.totalArea>0?fmt(Math.round(t.grandTotal/fd.totalArea)):0} ₽/м²</div><div class="cost-card-note">Все стадии включены</div></div>
     </div>
-    <div style="margin-top:28px;">
-      <div class="section-label" style="margin-bottom:14px;">Порядок оплаты</div>
-      <div class="payment-steps">${paymentSteps}</div>
+  </div>
+</div>
+
+<!-- PAGE 7b: PAYMENT ORDER -->
+<div class="page">
+  <div class="page-header">
+    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
+    <div class="page-number">10 / 14</div>
+  </div>
+  <div class="page-content">
+    <div class="section-label">Оплата</div>
+    <h2 class="section-title">Порядок и условия<br>оплаты работ</h2>
+    <p class="section-description">График поэтапной оплаты, привязанный к ключевым результатам проектирования.</p>
+    <div class="payment-grid">${fd.payments.filter(p=>p.pct>0).map((p,i)=>
+      `<div class="payment-card-kp">
+        <div class="payment-card-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="payment-card-pct">${p.pct}%</div>
+        <div class="payment-card-sum">${fmt(Math.round(t.grandTotal*p.pct/100))} ₽</div>
+        <div class="payment-card-desc">${esc(p.desc)}</div>
+      </div>`
+    ).join('')}</div>
+    <div class="cost-summary" style="margin-top:24px">
+      <div class="cost-card primary"><div class="cost-card-label">Итого к оплате</div><div class="cost-card-value">${fmt(t.grandTotal)} ₽</div><div class="cost-card-note">в т.ч. НДС 5%</div></div>
+      <div class="cost-card"><div class="cost-card-label">Этапов оплаты</div><div class="cost-card-value" style="color:var(--green-primary);">${fd.payments.filter(p=>p.pct>0).length}</div><div class="cost-card-note">по графику</div></div>
     </div>
   </div>
 </div>
@@ -1365,7 +1418,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">08 / 11</div>
+    <div class="page-number">11 / 14</div>
   </div>
   <div class="page-content">
     <div class="section-label">Сроки</div>
@@ -1383,7 +1436,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">09 / 11</div>
+    <div class="page-number">12 / 14</div>
   </div>
   <div class="page-content">
     <div class="section-label">Команда</div>
@@ -1405,7 +1458,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">10 / 11</div>
+    <div class="page-number">13 / 14</div>
   </div>
   <div class="page-content">
     <div class="section-label">Портфолио</div>
@@ -1428,7 +1481,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number">11 / 11</div>
+    <div class="page-number">14 / 14</div>
   </div>
   <div class="page-content">
     <div class="contacts-page">
@@ -1437,16 +1490,16 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
         <h2 class="section-title">Готовы обсудить<br>ваш проект</h2>
         <p class="section-description">Свяжитесь с нами для уточнения деталей и начала сотрудничества. Мы ответим в течение одного рабочего дня.</p>
         <div class="contacts-grid">
-          <div class="contact-card"><div class="contact-card-icon">📧</div><h4>Email</h4><p>info@gipformat.ru</p></div>
-          <div class="contact-card"><div class="contact-card-icon">📞</div><h4>Телефон</h4><p>+7 (347) 216-36-96</p></div>
-          <div class="contact-card"><div class="contact-card-icon">📍</div><h4>Офис</h4><p>г. Уфа</p></div>
-          <div class="contact-card"><div class="contact-card-icon">🌐</div><h4>Сайт</h4><p>gipformat.ru</p></div>
+          <div class="contact-card"><div class="contact-card-icon">📍</div><h4>Адрес</h4><p>г. Уфа, ул. Революционная, 96/5</p></div>
+          <div class="contact-card"><div class="contact-card-icon">📞</div><h4>Телефон</h4><p>+7 (987) 141-31-11<br><span style="font-size:11px;color:var(--text-gray)">+7 (917) 345-48-98</span></p></div>
+          <div class="contact-card"><div class="contact-card-icon">📧</div><h4>E-mail</h4><p>gipformat@yandex.ru</p></div>
+          <div class="contact-card"><div class="contact-card-icon">🌐</div><h4>Сайт</h4><p>gip-f.ru</p></div>
         </div>
         <div class="contacts-cta"><h3>Сотрудничайте с профессионалами!</h3><p>Более 10 лет опыта, 150+ реализованных проектов и BIM-технологии<br>для безупречного результата.</p></div>
       </div>
       <div class="contacts-footer">
         <div class="logo-block">${logoImg}<div class="logo-text" style="font-size:12px;">ГИП <span>ФОРМАТ</span></div></div>
-        <p>ООО «ГИП «ФОРМАТ»</p>
+        <p>ООО «ГИП «ФОРМАТ» • gip-f.ru</p>
         <p>${dateFormatted}</p>
       </div>
     </div>
