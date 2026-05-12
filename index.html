@@ -151,12 +151,11 @@ const GAP_OPTIONS = ['Айгуль','Ксения','Слава','Рустем'];
 const NAV_SECTIONS = [
   {id:'main',label:'Основная информация'},
   {id:'parameters',label:'Параметры объекта'},
-  {id:'stages',label:'Стадии и состав работ'},
+  {id:'stages',label:'Стадии, состав работ и исключения'},
   {id:'design',label:'Разделы проектирования'},
   {id:'costs',label:'Стоимость'},
   {id:'schedules',label:'Сроки'},
   {id:'payment',label:'Оплата и график'},
-  {id:'exclusions',label:'Что не входит'},
   {id:'_sep1',label:''},
   {id:'analytics',label:'Внутренняя аналитика'},
   {id:'history',label:'История проектов'},
@@ -171,10 +170,13 @@ function makeDefaultFd(){
     kpNumber:'', kpVersion:1, validityDays:30, internalNotes:'',
     objectType:'', objectAddress:'', objectPurpose:'', totalArea:0, floorsCount:'',
     sectionsCount:0, apartmentsCount:0, landArea:0, cadastralNumber:'',
-    parkingArea:0, commercialArea:0, showParking:false, showCommercial:false,
-    stages:{ago:false,stageP:false,stageR:false,expertise:false,engineering:false},
+    parkingArea:0, commercialArea:0,
+    showObjectType:true, showObjectPurpose:false, showFloors:true, showSections:true,
+    showApartments:true, showLandArea:true, showCadastral:true,
+    showParking:false, showCommercial:false,
+    stages:{concept:false,ago:false,stageP:false,stageR:false,expertise:false,engineering:false},
     expertiseType:'government',
-    engineeringTypes:{igi:false,igmi:false,igdi:false},
+    engineeringTypes:{igi:false,igmi:false,igdi:false,iei:false},
     additionalServices:{fireSafety:false,sanitary:false,authorSupervision:false},
     designSections:{},
     customSections:[],
@@ -182,12 +184,14 @@ function makeDefaultFd(){
     totalContractPrice:0,
     costs:{
       agoPrice:0,
-      engineeringIGI:0, engineeringIGMI:0, engineeringIGDI:0,
+      conceptPrice:0,
+      engineeringIGI:0, engineeringIGMI:0, engineeringIGDI:0, engineeringIEI:0,
       expertisePrice:0,
       stzuPrice:0, szzPrice:0,
+      parkingPricePerM2:0,
       additionalWorks:[]
     },
-    schedules:{agoDays:0,engineeringDays:0,stagePDays:0,expertiseDays:0,stageRDays:0},
+    schedules:{conceptDays:0,agoDays:0,engineeringDays:0,stagePDays:0,expertiseDays:0,stageRDays:0,szzDays:0,stuDays:0},
     payments:[
       {pct:20,desc:'Аванс'},
       {pct:20,desc:'После передачи проектной документации'},
@@ -206,12 +210,26 @@ function makeDefaultFd(){
 
 function migrateFormData(fd){
   if(!fd.customSections)fd.customSections=[];
+  if(!fd.stages)fd.stages={};
+  if(fd.stages.concept===undefined)fd.stages.concept=false;
+  if(!fd.schedules)fd.schedules={};
+  if(fd.schedules.conceptDays===undefined)fd.schedules.conceptDays=0;
+  if(fd.schedules.szzDays===undefined)fd.schedules.szzDays=0;
+  if(fd.schedules.stuDays===undefined)fd.schedules.stuDays=0;
   if(fd.showParking===undefined)fd.showParking=false;
   if(fd.showCommercial===undefined)fd.showCommercial=false;
+  if(fd.showObjectType===undefined)fd.showObjectType=true;
+  if(fd.showObjectPurpose===undefined)fd.showObjectPurpose=false;
+  if(fd.showFloors===undefined)fd.showFloors=true;
+  if(fd.showSections===undefined)fd.showSections=true;
+  if(fd.showApartments===undefined)fd.showApartments=true;
+  if(fd.showLandArea===undefined)fd.showLandArea=true;
+  if(fd.showCadastral===undefined)fd.showCadastral=true;
   if(!fd.parkingArea)fd.parkingArea=0;
   if(!fd.commercialArea)fd.commercialArea=0;
   if(!fd.expertiseType)fd.expertiseType='government';
-  if(!fd.engineeringTypes)fd.engineeringTypes={igi:false,igmi:false,igdi:false};
+  if(!fd.engineeringTypes)fd.engineeringTypes={igi:false,igmi:false,igdi:false,iei:false};
+  if(fd.engineeringTypes.iei===undefined)fd.engineeringTypes.iei=false;
   if(fd.pricePerM2===undefined)fd.pricePerM2=0;
   if(!fd.labor)fd.labor={avgSalary:0};
   // миграция старых costs
@@ -224,6 +242,9 @@ function migrateFormData(fd){
   if(!fd.costs.additionalWorks)fd.costs.additionalWorks=[];
   if(fd.costs.stzuPrice===undefined)fd.costs.stzuPrice=0;
   if(fd.costs.szzPrice===undefined)fd.costs.szzPrice=0;
+  if(fd.costs.conceptPrice===undefined)fd.costs.conceptPrice=0;
+  if(fd.costs.engineeringIEI===undefined)fd.costs.engineeringIEI=0;
+  if(fd.costs.parkingPricePerM2===undefined)fd.costs.parkingPricePerM2=0;
   getAllSections().forEach(s=>{
     if(!fd.designSections[s.key])fd.designSections[s.key]={enabled:true,stageP:true,stageR:true,pct:s.pct};
     if(!fd.designSections[s.key].hasOwnProperty('pct'))fd.designSections[s.key].pct=s.pct;
@@ -235,6 +256,7 @@ function migrateFormData(fd){
 let fd = makeDefaultFd();
 try{const s=localStorage.getItem('kpFormV3');if(s){const loaded=JSON.parse(s);fd={...makeDefaultFd(),...loaded}}}catch(e){}
 migrateFormData(fd);
+// функции generateKpNumber/applyAutoExclusions объявлены ниже, поэтому первый вызов — после загрузки cloudHistory
 
 let _saveTimer;
 function save(){clearTimeout(_saveTimer);_saveTimer=setTimeout(()=>localStorage.setItem('kpFormV3',JSON.stringify(fd)),400);}
@@ -247,14 +269,52 @@ function fmt(n){return Math.round(Number(n)).toLocaleString('ru-RU')}
 function fmtDec(n,d=1){return Number(n).toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d})}
 function optSel(arr,val){return arr.map(v=>`<option value="${esc(v)}" ${v===val?'selected':''}>${esc(v)}</option>`).join('')}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
-function fmtInput(v){return String(v).replace(/\s/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,' ')}
-function parseFmtInput(s){return parseFloat(String(s).replace(/\s/g,''))||0}
+// Денежный input: пропускает только цифры. Буквы/символы автоматически удаляются.
+function fmtInput(v){return String(v).replace(/[^\d]/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,' ')}
+function parseFmtInput(s){return parseInt(String(s).replace(/[^\d]/g,''))||0}
+
+// === Автогенерация номера КП (п.1) ===
+// Формат: КП-YYYY-NNN, где NNN — max(номер за этот год в Supabase истории) + 1
+function generateKpNumber(){
+  const year = new Date().getFullYear();
+  const prefix = 'КП-'+year+'-';
+  const used = (cloudHistory||[]).map(h=>h.kp_number||'').filter(n=>n.startsWith(prefix)).map(n=>parseInt(n.slice(prefix.length))||0);
+  const next = used.length ? Math.max(...used)+1 : 1;
+  return prefix + String(next).padStart(3,'0');
+}
+
+// === Автозаполнение «Что не входит» при выключении услуг (п.27) ===
+// Когда услуга выключена — строка автоматически появляется в exclusions, когда включена — убирается.
+const AUTO_EXCL_RULES = [
+  {key:'concept',           text:'Разработка концепции (предпроектная стадия)'},
+  {key:'ago',               text:'Разработка архитектурно-градостроительного облика (АГО)'},
+  {key:'engineering',       text:'Инженерные изыскания (геология, геодезия, гидрометеорология)'},
+  {key:'stageP',            text:'Разработка проектной документации (Стадия П)'},
+  {key:'expertise',         text:'Сопровождение экспертизы проектной документации'},
+  {key:'stageR',            text:'Разработка рабочей документации (Стадия Р)'},
+  {key:'fireSafety',        text:'Разработка специальных технических условий по пожарной безопасности (СТУ ПБ)'},
+  {key:'sanitary',          text:'Расчёт санитарно-защитной зоны (СЗЗ)'},
+  {key:'authorSupervision', text:'Авторский надзор за строительством'},
+];
+function isServiceEnabled(key){
+  if(['authorSupervision','fireSafety','sanitary'].includes(key)) return !!(fd.additionalServices&&fd.additionalServices[key]);
+  return !!(fd.stages&&fd.stages[key]);
+}
+function applyAutoExclusions(){
+  if(!Array.isArray(fd.exclusions)) fd.exclusions=[];
+  AUTO_EXCL_RULES.forEach(r=>{
+    const idx = fd.exclusions.indexOf(r.text);
+    const enabled = isServiceEnabled(r.key);
+    if(!enabled && idx===-1) fd.exclusions.push(r.text);
+    if(enabled && idx!==-1)  fd.exclusions.splice(idx,1);
+  });
+}
 
 function getAllSections(){return [...DEFAULT_SECTIONS, ...(fd.customSections||[])]}
 function getEnabledSections(){return getAllSections().filter(s=>fd.designSections[s.key]?.enabled)}
 function getSectionPct(key){return fd.designSections[key]?.pct ?? DEFAULT_SECTIONS.find(s=>s.key===key)?.pct ?? 0}
 
-function getEngineeringTotal(){return (fd.costs.engineeringIGI||0)+(fd.costs.engineeringIGMI||0)+(fd.costs.engineeringIGDI||0)}
+function getEngineeringTotal(){return (fd.costs.engineeringIGI||0)+(fd.costs.engineeringIGMI||0)+(fd.costs.engineeringIGDI||0)+(fd.costs.engineeringIEI||0)}
 function getAdditionalWorksTotal(){return (fd.costs.additionalWorks||[]).filter(w=>w.enabled).reduce((a,w)=>a+(w.price||0),0)}
 
 function calcTotals(){
@@ -291,7 +351,6 @@ function getSectionStatus(id){
     case 'costs': return fd.totalContractPrice>0||fd.pricePerM2>0?'done':'empty';
     case 'schedules': {const s=fd.schedules;return (s.stagePDays||s.stageRDays||s.agoDays)?'done':'empty'}
     case 'payment': {const sum=fd.payments.reduce((a,p)=>a+p.pct,0);return Math.abs(sum-100)<0.1?'done':(sum>0?'partial':'empty')}
-    case 'exclusions': return fd.exclusions.filter(e=>e).length>0?'done':'empty';
     default: return 'none';
   }
 }
@@ -325,8 +384,12 @@ function render(){
   <div class="section ${activeSection==='main'?'active':''}" id="sec-main">
     <h2 class="title">Основная информация</h2>
     <div class="grid3">
-      <div class="field"><label class="field-label">Номер КП</label>
-        <input type="text" value="${esc(fd.kpNumber)}" oninput="fd.kpNumber=this.value;save()" placeholder="КП-2026-001"></div>
+      <div class="field"><label class="field-label">Номер КП <span style="color:#8BC34A;font-weight:600">· назначается автоматически</span></label>
+        <div style="display:flex;gap:6px">
+          <input type="text" value="${esc(fd.kpNumber)}" readonly style="flex:1;background:#1a2a1a;color:#8BC34A;font-weight:700;letter-spacing:1px;border-color:#8BC34A;font-family:'JetBrains Mono','SF Mono',Consolas,monospace" placeholder="загружается из истории...">
+          <button class="btn-secondary btn-sm" type="button" title="Сгенерировать новый номер" onclick="fd.kpNumber=generateKpNumber();saveNow();render()" style="background:#2a2a2a">↻ новый</button>
+        </div>
+        <div style="font-size:10px;color:#666;margin-top:4px">Номер берётся как следующий после max в облачной истории за ${new Date().getFullYear()} год</div></div>
       <div class="field"><label class="field-label">Версия</label>
         <input type="number" min="1" value="${fd.kpVersion||1}" oninput="fd.kpVersion=parseInt(this.value)||1;save()" style="text-align:center"></div>
       <div class="field"><label class="field-label">Срок действия, дней</label>
@@ -343,64 +406,103 @@ function render(){
   <!-- ===== ПАРАМЕТРЫ ОБЪЕКТА ===== -->
   <div class="section ${activeSection==='parameters'?'active':''}" id="sec-parameters">
     <h2 class="title">Параметры объекта</h2>
-    <div class="field"><label class="field-label">Тип объекта</label>
-      <select onchange="fd.objectType=this.value;save()"><option value="">Выберите тип</option>${optSel(OBJECT_TYPES,fd.objectType)}</select></div>
-    <div class="field"><label class="field-label">Адрес объекта</label>
+    <p style="font-size:11px;color:#888;margin-bottom:14px">Галочка <strong style="color:#8BC34A">«В КП»</strong> справа от поля — управляет показом этого параметра в коммерческом предложении. Поля Адрес и Площадь — обязательные.</p>
+
+    <div class="field">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <label class="field-label" style="margin:0">Тип объекта</label>
+        <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" ${fd.showObjectType?'checked':''} onchange="fd.showObjectType=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП</label>
+      </div>
+      <select onchange="fd.objectType=this.value;save()"><option value="">Выберите тип</option>${optSel(OBJECT_TYPES,fd.objectType)}</select>
+    </div>
+    <div class="field"><label class="field-label">Адрес объекта *</label>
       <input type="text" value="${esc(fd.objectAddress)}" oninput="fd.objectAddress=this.value;save()"></div>
-    <div class="field"><label class="field-label">Назначение</label>
-      <textarea oninput="fd.objectPurpose=this.value;save()">${esc(fd.objectPurpose)}</textarea></div>
+    <div class="field">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <label class="field-label" style="margin:0">Назначение</label>
+        <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" ${fd.showObjectPurpose?'checked':''} onchange="fd.showObjectPurpose=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП</label>
+      </div>
+      <textarea oninput="fd.objectPurpose=this.value;save()" placeholder="Свободная фраза: жилой дом со встроенно-пристроенными помещениями...">${esc(fd.objectPurpose)}</textarea>
+    </div>
+
     <div class="grid2">
-      <div class="field"><label class="field-label">Продаваемая площадь, м²</label>
+      <div class="field"><label class="field-label">Продаваемая площадь, м² *</label>
         <input type="number" value="${fd.totalArea||''}" oninput="fd.totalArea=parseFloat(this.value)||0;save();updateDynamic()"></div>
-      <div class="field"><label class="field-label">Этажность</label>
-        <input type="text" value="${esc(fd.floorsCount)}" oninput="fd.floorsCount=this.value;save()"></div>
+      <div class="field">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <label class="field-label" style="margin:0">Этажность <span style="color:#666;font-size:10px">· цифры, -, +</span></label>
+          <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" ${fd.showFloors?'checked':''} onchange="fd.showFloors=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП</label>
+        </div>
+        <input type="text" value="${esc(fd.floorsCount)}" oninput="this.value=this.value.replace(/[^0-9\\-+\\s]/g,'');fd.floorsCount=this.value;save()" placeholder="например: 25 или 17-25">
+      </div>
     </div>
+
     <div class="grid2">
-      <div class="field"><label class="field-label">Количество секций</label>
-        <input type="number" value="${fd.sectionsCount||''}" oninput="fd.sectionsCount=parseInt(this.value)||0;save()"></div>
-      <div class="field"><label class="field-label">Количество квартир</label>
-        <input type="number" value="${fd.apartmentsCount||''}" oninput="fd.apartmentsCount=parseInt(this.value)||0;save()"></div>
+      <div class="field">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <label class="field-label" style="margin:0">Количество секций</label>
+          <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" ${fd.showSections?'checked':''} onchange="fd.showSections=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП</label>
+        </div>
+        <input type="number" value="${fd.sectionsCount||''}" oninput="fd.sectionsCount=parseInt(this.value)||0;save()">
+      </div>
+      <div class="field">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <label class="field-label" style="margin:0">Количество квартир</label>
+          <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" ${fd.showApartments?'checked':''} onchange="fd.showApartments=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП</label>
+        </div>
+        <input type="number" value="${fd.apartmentsCount||''}" oninput="fd.apartmentsCount=parseInt(this.value)||0;save()">
+      </div>
     </div>
+
     <div class="grid2">
-      <div class="field"><label class="field-label">Площадь зем. участка, га</label>
-        <input type="number" step="0.01" value="${fd.landArea||''}" oninput="fd.landArea=parseFloat(this.value)||0;save()"></div>
-      <div class="field"><label class="field-label">Кадастровый номер</label>
-        <input type="text" value="${esc(fd.cadastralNumber)}" oninput="fd.cadastralNumber=this.value;save()"></div>
+      <div class="field">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <label class="field-label" style="margin:0">Площадь зем. участка, га</label>
+          <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" ${fd.showLandArea?'checked':''} onchange="fd.showLandArea=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП</label>
+        </div>
+        <input type="number" step="0.01" value="${fd.landArea||''}" oninput="fd.landArea=parseFloat(this.value)||0;save()">
+      </div>
+      <div class="field">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <label class="field-label" style="margin:0">Кадастровый номер <span style="color:#666;font-size:10px">· цифры, :</span></label>
+          <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" ${fd.showCadastral?'checked':''} onchange="fd.showCadastral=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП</label>
+        </div>
+        <input type="text" value="${esc(fd.cadastralNumber)}" oninput="this.value=this.value.replace(/[^0-9:]/g,'');fd.cadastralNumber=this.value;save()" placeholder="00:00:000000:00">
+      </div>
     </div>
+
     <div class="grid2">
       <div class="field">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
           <label class="field-label" style="margin:0">Площадь паркинга, м²</label>
-          <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px">
-            <input type="checkbox" ${fd.showParking?'checked':''} onchange="fd.showParking=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП
-          </label>
+          <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" ${fd.showParking?'checked':''} onchange="fd.showParking=this.checked;save();render()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП</label>
         </div>
         <input type="number" value="${fd.parkingArea||''}" oninput="fd.parkingArea=parseFloat(this.value)||0;save()">
       </div>
       <div class="field">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
           <label class="field-label" style="margin:0">Площадь коммерции, м²</label>
-          <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px">
-            <input type="checkbox" ${fd.showCommercial?'checked':''} onchange="fd.showCommercial=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП
-          </label>
+          <label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px"><input type="checkbox" ${fd.showCommercial?'checked':''} onchange="fd.showCommercial=this.checked;save()" style="width:14px;height:14px;accent-color:#8BC34A"> В КП</label>
         </div>
         <input type="number" value="${fd.commercialArea||''}" oninput="fd.commercialArea=parseFloat(this.value)||0;save()">
       </div>
     </div>
   </div>
 
-  <!-- ===== СТАДИИ ===== -->
+  <!-- ===== СТАДИИ + ЧТО НЕ ВХОДИТ ===== -->
   <div class="section ${activeSection==='stages'?'active':''}" id="sec-stages">
-    <h2 class="title">Стадии и состав работ</h2>
+    <h2 class="title">Стадии, состав работ и исключения</h2>
+    <p style="font-size:11px;color:#888;margin-bottom:14px;line-height:1.5">Выбранные галочки попадают в состав работ КП. Невыбранные — автоматически попадают в блок «Что не входит» внизу страницы.</p>
     <h3>Основные стадии</h3>
     <div class="check-group">
-      <label><input type="checkbox" ${fd.stages.ago?'checked':''} onchange="fd.stages.ago=this.checked;save()"> АГО (Архитектурно-градостроительный облик)</label>
-      <label><input type="checkbox" ${fd.stages.stageP?'checked':''} onchange="fd.stages.stageP=this.checked;save()"> Стадия П (Проектная документация)</label>
-      <label><input type="checkbox" ${fd.stages.stageR?'checked':''} onchange="fd.stages.stageR=this.checked;save()"> Стадия Р (Рабочая документация)</label>
+      <label><input type="checkbox" ${fd.stages.concept?'checked':''} onchange="fd.stages.concept=this.checked;applyAutoExclusions();save();renderExclusions()"> Концепция (предпроектная стадия, эскизные решения)</label>
+      <label><input type="checkbox" ${fd.stages.ago?'checked':''} onchange="fd.stages.ago=this.checked;applyAutoExclusions();save();renderExclusions()"> АГО (Архитектурно-градостроительный облик)</label>
+      <label><input type="checkbox" ${fd.stages.stageP?'checked':''} onchange="fd.stages.stageP=this.checked;applyAutoExclusions();save();renderExclusions()"> Стадия П (Проектная документация)</label>
+      <label><input type="checkbox" ${fd.stages.stageR?'checked':''} onchange="fd.stages.stageR=this.checked;applyAutoExclusions();save();renderExclusions()"> Стадия Р (Рабочая документация)</label>
     </div>
     <h3 style="margin-top:16px">Экспертиза</h3>
     <div class="check-group">
-      <label><input type="checkbox" ${fd.stages.expertise?'checked':''} onchange="fd.stages.expertise=this.checked;save();render()"> Экспертиза проектной документации</label>
+      <label><input type="checkbox" ${fd.stages.expertise?'checked':''} onchange="fd.stages.expertise=this.checked;applyAutoExclusions();save();render()"> Экспертиза проектной документации</label>
     </div>
     ${fd.stages.expertise?`<div class="field" style="margin-top:8px;max-width:300px"><label class="field-label">Тип экспертизы</label>
       <select onchange="fd.expertiseType=this.value;save()">
@@ -409,22 +511,28 @@ function render(){
       </select></div>`:''}
     <h3 style="margin-top:16px">Инженерные изыскания</h3>
     <div class="check-group">
-      <label><input type="checkbox" ${fd.stages.engineering?'checked':''} onchange="fd.stages.engineering=this.checked;save();render()"> Инженерные изыскания</label>
+      <label><input type="checkbox" ${fd.stages.engineering?'checked':''} onchange="fd.stages.engineering=this.checked;applyAutoExclusions();save();render()"> Инженерные изыскания</label>
     </div>
     ${fd.stages.engineering?`<div style="margin-top:8px;padding:12px;background:#1a1a1a;border:1px solid #333;border-radius:8px">
       <p style="font-size:11px;color:#888;margin-bottom:8px">Виды изысканий (отметьте включённые):</p>
       <div class="check-group">
-        <label><input type="checkbox" ${fd.engineeringTypes.igi?'checked':''} onchange="fd.engineeringTypes.igi=this.checked;save()"> ИГИ — Инженерно-геологические</label>
-        <label><input type="checkbox" ${fd.engineeringTypes.igmi?'checked':''} onchange="fd.engineeringTypes.igmi=this.checked;save()"> ИГМИ — Инженерно-гидрометеорологические</label>
-        <label><input type="checkbox" ${fd.engineeringTypes.igdi?'checked':''} onchange="fd.engineeringTypes.igdi=this.checked;save()"> ИГДИ — Инженерно-геодезические</label>
+        <label><input type="checkbox" ${fd.engineeringTypes.igi?'checked':''} onchange="fd.engineeringTypes.igi=this.checked;save();render()"> ИГИ — Инженерно-геологические (геология)</label>
+        <label><input type="checkbox" ${fd.engineeringTypes.igdi?'checked':''} onchange="fd.engineeringTypes.igdi=this.checked;save();render()"> ИГДИ — Инженерно-геодезические (геодезия)</label>
+        <label><input type="checkbox" ${fd.engineeringTypes.igmi?'checked':''} onchange="fd.engineeringTypes.igmi=this.checked;save();render()"> ИГМИ — Инженерно-гидрометеорологические (гидромет)</label>
+        <label><input type="checkbox" ${fd.engineeringTypes.iei?'checked':''} onchange="fd.engineeringTypes.iei=this.checked;save();render()"> ИЭИ — Инженерно-экологические (экология)</label>
       </div>
     </div>`:''}
     <h3 style="margin-top:16px">Дополнительные услуги</h3>
     <div class="check-group">
-      <label><input type="checkbox" ${fd.additionalServices.fireSafety?'checked':''} onchange="fd.additionalServices.fireSafety=this.checked;save()"> СТУ по пожарной безопасности</label>
-      <label><input type="checkbox" ${fd.additionalServices.sanitary?'checked':''} onchange="fd.additionalServices.sanitary=this.checked;save()"> Расчёт СЗЗ</label>
-      <label><input type="checkbox" ${fd.additionalServices.authorSupervision?'checked':''} onchange="fd.additionalServices.authorSupervision=this.checked;save()"> Авторский надзор</label>
+      <label><input type="checkbox" ${fd.additionalServices.fireSafety?'checked':''} onchange="fd.additionalServices.fireSafety=this.checked;applyAutoExclusions();save();render()"> СТУ по пожарной безопасности</label>
+      <label><input type="checkbox" ${fd.additionalServices.sanitary?'checked':''} onchange="fd.additionalServices.sanitary=this.checked;applyAutoExclusions();save();render()"> Расчёт СЗЗ</label>
+      <label><input type="checkbox" ${fd.additionalServices.authorSupervision?'checked':''} onchange="fd.additionalServices.authorSupervision=this.checked;applyAutoExclusions();save();render()"> Авторский надзор</label>
     </div>
+
+    <h3 style="margin-top:24px;padding-top:18px;border-top:1px solid #2a2a2a">Что не входит в стоимость</h3>
+    <p style="font-size:11px;color:#888;margin-bottom:10px">Список синхронизируется с галочками сверху: выключаешь услугу — её строка появляется здесь. Можно добавлять свои пункты.</p>
+    <div id="excl-list"></div>
+    <button class="btn-add" onclick="addExcl()" style="margin-top:10px">Добавить исключение</button>
   </div>
 
   <!-- ===== РАЗДЕЛЫ ПРОЕКТИРОВАНИЯ ===== -->
@@ -438,13 +546,13 @@ function render(){
           <div class="label" style="margin:0">${esc(s.label)}${isCustom?' <span style="font-size:10px;color:#888">(свой)</span>':''}</div>
           <div style="display:flex;align-items:center;gap:6px">
             <input type="number" step="0.5" min="0" style="width:60px;padding:4px 6px;text-align:center;font-size:12px;background:#222;border:1px solid #444;border-radius:4px;color:#8BC34A;font-weight:600"
-              value="${ds.pct??s.pct}" onchange="fd.designSections['${s.key}'].pct=parseFloat(this.value)||0;save();updateDynamic()">
+              value="${ds.pct??s.pct}" onchange="fd.designSections['${s.key}'].pct=parseFloat(this.value)||0;normalizePcts();save();render()">
             <span style="font-size:11px;color:#666">%</span>
             ${isCustom?`<button class="btn-remove" style="padding:4px 8px;font-size:10px" onclick="removeCustomSection('${s.key}')">✕</button>`:''}
           </div>
         </div>
         <div class="checks">
-          <label><input type="checkbox" ${ds.enabled?'checked':''} onchange="fd.designSections['${s.key}'].enabled=this.checked;save();render()"> Включён</label>
+          <label><input type="checkbox" ${ds.enabled?'checked':''} onchange="fd.designSections['${s.key}'].enabled=this.checked;normalizePcts();save();render()"> Включён</label>
           <label><input type="checkbox" ${ds.stageP?'checked':''} onchange="fd.designSections['${s.key}'].stageP=this.checked;save()"> Стадия П</label>
           <label><input type="checkbox" ${ds.stageR?'checked':''} onchange="fd.designSections['${s.key}'].stageR=this.checked;save()"> Стадия Р</label>
         </div>
@@ -476,14 +584,14 @@ function render(){
     <div class="grid2" style="margin-bottom:14px">
       <div class="field">
         <label class="field-label">Цена за м² продаваемой площади, руб</label>
-        <input type="text" inputmode="numeric" value="${fd.pricePerM2?fmtInput(fd.pricePerM2):''}"
-          oninput="fd.pricePerM2=parseFmtInput(this.value);this.value=fmtInput(this.value);fd.totalContractPrice=Math.round(fd.pricePerM2*fd.totalArea);save();updateDynamic();render()"
+        <input type="text" inputmode="numeric" id="inpPricePerM2" value="${fd.pricePerM2?fmtInput(fd.pricePerM2):''}"
+          oninput="const p=this.selectionStart;const ol=this.value.length;fd.pricePerM2=parseFmtInput(this.value);this.value=fmtInput(this.value);this.selectionStart=this.selectionEnd=p+(this.value.length-ol);fd.totalContractPrice=Math.round(fd.pricePerM2*fd.totalArea);save();updateDynamic()"
           placeholder="Например: 600" style="font-size:18px;font-weight:700;padding:12px">
       </div>
       <div class="field">
         <label class="field-label">или Общая сумма контракта с НДС, руб</label>
-        <input type="text" inputmode="numeric" value="${fd.totalContractPrice?fmtInput(fd.totalContractPrice):''}"
-          oninput="fd.totalContractPrice=parseFmtInput(this.value);const p=this.selectionStart;const ol=this.value.length;this.value=fmtInput(this.value);this.selectionStart=this.selectionEnd=p+(this.value.length-ol);fd.pricePerM2=fd.totalArea>0?Math.round(fd.totalContractPrice/fd.totalArea):0;save();updateDynamic()"
+        <input type="text" inputmode="numeric" id="inpTotalContract" value="${fd.totalContractPrice?fmtInput(fd.totalContractPrice):''}"
+          oninput="const p=this.selectionStart;const ol=this.value.length;fd.totalContractPrice=parseFmtInput(this.value);this.value=fmtInput(this.value);this.selectionStart=this.selectionEnd=p+(this.value.length-ol);fd.pricePerM2=fd.totalArea>0?Math.round(fd.totalContractPrice/fd.totalArea):0;save();updateDynamic()"
           placeholder="Рассчитается от цены за м²" style="font-size:18px;font-weight:700;padding:12px">
       </div>
     </div>
@@ -501,20 +609,31 @@ function render(){
       </div>
     </div>
 
+    ${fd.stages.concept?`<h3 style="margin-top:20px">Концепция</h3>
+    <div class="field"><label class="field-label">Стоимость концепции, руб <span style="color:#666;font-size:10px">(оставьте пустым — в КП будет «по запросу»)</span></label>
+      <input type="text" inputmode="numeric" value="${fd.costs.conceptPrice?fmtInput(fd.costs.conceptPrice):''}" oninput="fd.costs.conceptPrice=parseFmtInput(this.value);this.value=fmtInput(this.value);save();updateDynamic()"></div>`:''}
+
     ${fd.stages.ago?`<h3 style="margin-top:20px">АГО</h3>
     <div class="field"><label class="field-label">Стоимость АГО, руб</label>
       <input type="text" inputmode="numeric" value="${fd.costs.agoPrice?fmtInput(fd.costs.agoPrice):''}" oninput="fd.costs.agoPrice=parseFmtInput(this.value);this.value=fmtInput(this.value);save();updateDynamic()"></div>`:''}
 
+    ${fd.showParking&&fd.parkingArea>0?`<h3 style="margin-top:20px">Цена за м² паркинга</h3>
+    <p style="font-size:11px;color:#888;margin-bottom:6px">Если паркинг проектируется по той же цене что и жильё — оставьте пустым. Иначе укажите свою цену за м² паркинга.</p>
+    <div class="field"><label class="field-label">Цена за м² паркинга, руб/м²</label>
+      <input type="text" inputmode="numeric" value="${fd.costs.parkingPricePerM2?fmtInput(fd.costs.parkingPricePerM2):''}" oninput="fd.costs.parkingPricePerM2=parseFmtInput(this.value);this.value=fmtInput(this.value);save();updateDynamic()" placeholder="например: 300"></div>`:''}
+
     ${fd.stages.engineering?`<h3 style="margin-top:20px">Инженерные изыскания</h3>
-    <div class="grid3">
-      ${fd.engineeringTypes.igi?`<div class="field"><label class="field-label">ИГИ (геология), руб</label>
+    <div class="grid2">
+      ${fd.engineeringTypes.igi?`<div class="field"><label class="field-label">ИГИ — геология, руб</label>
         <input type="text" inputmode="numeric" value="${fd.costs.engineeringIGI?fmtInput(fd.costs.engineeringIGI):''}" oninput="fd.costs.engineeringIGI=parseFmtInput(this.value);this.value=fmtInput(this.value);save();updateDynamic()"></div>`:''}
-      ${fd.engineeringTypes.igmi?`<div class="field"><label class="field-label">ИГМИ (гидрометео), руб</label>
-        <input type="text" inputmode="numeric" value="${fd.costs.engineeringIGMI?fmtInput(fd.costs.engineeringIGMI):''}" oninput="fd.costs.engineeringIGMI=parseFmtInput(this.value);this.value=fmtInput(this.value);save();updateDynamic()"></div>`:''}
-      ${fd.engineeringTypes.igdi?`<div class="field"><label class="field-label">ИГДИ (геодезия), руб</label>
+      ${fd.engineeringTypes.igdi?`<div class="field"><label class="field-label">ИГДИ — геодезия, руб</label>
         <input type="text" inputmode="numeric" value="${fd.costs.engineeringIGDI?fmtInput(fd.costs.engineeringIGDI):''}" oninput="fd.costs.engineeringIGDI=parseFmtInput(this.value);this.value=fmtInput(this.value);save();updateDynamic()"></div>`:''}
+      ${fd.engineeringTypes.igmi?`<div class="field"><label class="field-label">ИГМИ — гидрометео, руб</label>
+        <input type="text" inputmode="numeric" value="${fd.costs.engineeringIGMI?fmtInput(fd.costs.engineeringIGMI):''}" oninput="fd.costs.engineeringIGMI=parseFmtInput(this.value);this.value=fmtInput(this.value);save();updateDynamic()"></div>`:''}
+      ${fd.engineeringTypes.iei?`<div class="field"><label class="field-label">ИЭИ — экология, руб</label>
+        <input type="text" inputmode="numeric" value="${fd.costs.engineeringIEI?fmtInput(fd.costs.engineeringIEI):''}" oninput="fd.costs.engineeringIEI=parseFmtInput(this.value);this.value=fmtInput(this.value);save();updateDynamic()"></div>`:''}
     </div>
-    <div style="font-size:12px;color:#8BC34A;margin-top:4px">Итого изыскания: ${fmt(getEngineeringTotal())} руб</div>`:''}
+    <div style="font-size:12px;color:#8BC34A;margin-top:4px">Итого изыскания: <span id="engineeringSubtotal">${fmt(getEngineeringTotal())}</span> руб</div>`:''}
 
     ${fd.stages.expertise?`<h3 style="margin-top:20px">Экспертиза (${fd.expertiseType==='government'?'государственная':'негосударственная'})</h3>
     <div class="field"><label class="field-label">Стоимость экспертизы, руб</label>
@@ -564,20 +683,30 @@ function render(){
   <!-- ===== СРОКИ ===== -->
   <div class="section ${activeSection==='schedules'?'active':''}" id="sec-schedules">
     <h2 class="title">Сроки (календарные дни)</h2>
-    <div class="grid2">
-      <div class="field"><label class="field-label">АГО</label>
-        <input type="number" value="${fd.schedules.agoDays||''}" oninput="fd.schedules.agoDays=parseInt(this.value)||0;save()"></div>
-      <div class="field"><label class="field-label">Изыскания</label>
-        <input type="number" value="${fd.schedules.engineeringDays||''}" oninput="fd.schedules.engineeringDays=parseInt(this.value)||0;save()"></div>
+    <p style="font-size:11px;color:#888;margin-bottom:14px">В КП попадут только этапы с заполненным сроком &gt; 0 и включённой галочкой на странице «Стадии».</p>
+    <div class="grid3">
+      ${fd.stages.concept?`<div class="field"><label class="field-label">Концепция</label>
+        <input type="number" value="${fd.schedules.conceptDays||''}" oninput="fd.schedules.conceptDays=parseInt(this.value)||0;save()"></div>`:''}
+      ${fd.stages.engineering?`<div class="field"><label class="field-label">Изыскания</label>
+        <input type="number" value="${fd.schedules.engineeringDays||''}" oninput="fd.schedules.engineeringDays=parseInt(this.value)||0;save()"></div>`:''}
+      ${fd.stages.ago?`<div class="field"><label class="field-label">АГО</label>
+        <input type="number" value="${fd.schedules.agoDays||''}" oninput="fd.schedules.agoDays=parseInt(this.value)||0;save()"></div>`:''}
     </div>
-    <div class="grid2">
-      <div class="field"><label class="field-label">Стадия П</label>
-        <input type="number" value="${fd.schedules.stagePDays||''}" oninput="fd.schedules.stagePDays=parseInt(this.value)||0;save()"></div>
-      <div class="field"><label class="field-label">Экспертиза</label>
-        <input type="number" value="${fd.schedules.expertiseDays||''}" oninput="fd.schedules.expertiseDays=parseInt(this.value)||0;save()"></div>
+    <div class="grid3">
+      ${fd.stages.stageP?`<div class="field"><label class="field-label">Стадия П</label>
+        <input type="number" value="${fd.schedules.stagePDays||''}" oninput="fd.schedules.stagePDays=parseInt(this.value)||0;save()"></div>`:''}
+      ${fd.stages.expertise?`<div class="field"><label class="field-label">Экспертиза</label>
+        <input type="number" value="${fd.schedules.expertiseDays||''}" oninput="fd.schedules.expertiseDays=parseInt(this.value)||0;save()"></div>`:''}
+      ${fd.stages.stageR?`<div class="field"><label class="field-label">Стадия Р</label>
+        <input type="number" value="${fd.schedules.stageRDays||''}" oninput="fd.schedules.stageRDays=parseInt(this.value)||0;save()"></div>`:''}
     </div>
-    <div class="field" style="max-width:400px"><label class="field-label">Стадия Р</label>
-      <input type="number" value="${fd.schedules.stageRDays||''}" oninput="fd.schedules.stageRDays=parseInt(this.value)||0;save()"></div>
+    <div class="grid3">
+      ${fd.additionalServices.fireSafety?`<div class="field"><label class="field-label">СТУ ПБ</label>
+        <input type="number" value="${fd.schedules.stuDays||''}" oninput="fd.schedules.stuDays=parseInt(this.value)||0;save()"></div>`:''}
+      ${fd.additionalServices.sanitary?`<div class="field"><label class="field-label">СЗЗ</label>
+        <input type="number" value="${fd.schedules.szzDays||''}" oninput="fd.schedules.szzDays=parseInt(this.value)||0;save()"></div>`:''}
+    </div>
+    ${!(fd.stages.concept||fd.stages.ago||fd.stages.engineering||fd.stages.stageP||fd.stages.expertise||fd.stages.stageR||fd.additionalServices.fireSafety||fd.additionalServices.sanitary)?'<p style="color:#888;font-size:12px">Сначала включите стадии и услуги на странице «Стадии, состав работ и исключения».</p>':''}
   </div>
 
   <!-- ===== ОПЛАТА И ГРАФИК ===== -->
@@ -590,13 +719,6 @@ function render(){
     </div>
     <h3 style="margin-top:24px">График поступления платежей</h3>
     <div id="paymentTimeline"></div>
-  </div>
-
-  <!-- ===== ЧТО НЕ ВХОДИТ ===== -->
-  <div class="section ${activeSection==='exclusions'?'active':''}" id="sec-exclusions">
-    <h2 class="title">Что не входит в стоимость</h2>
-    <div id="excl-list"></div>
-    <button class="btn-add" onclick="addExcl()" style="margin-top:10px">Добавить исключение</button>
   </div>
 
   <!-- ===== ВНУТРЕННЯЯ АНАЛИТИКА ===== -->
@@ -690,6 +812,26 @@ function addPayment(){fd.payments.push({pct:0,desc:''});save();renderPayments()}
 function removePayment(i){fd.payments.splice(i,1);save();renderPayments();updateDynamic()}
 function movePayment(i,dir){const j=i+dir;if(j<0||j>=fd.payments.length)return;[fd.payments[i],fd.payments[j]]=[fd.payments[j],fd.payments[i]];save();renderPayments();updateDynamic()}
 function resetPcts(){DEFAULT_SECTIONS.forEach(s=>{fd.designSections[s.key].pct=s.pct});save();render()}
+
+// === Нормализация % включённых разделов до 100% (п.4 итераций) ===
+// Сохраняем относительные пропорции, но сумма всегда = 100.
+function normalizePcts(){
+  const enabled = getEnabledSections();
+  const sum = enabled.reduce((a,s)=>a+(parseFloat(fd.designSections[s.key]?.pct)||0),0);
+  if(sum<=0) return;
+  const k = 100/sum;
+  enabled.forEach(s=>{
+    const cur = parseFloat(fd.designSections[s.key].pct)||0;
+    fd.designSections[s.key].pct = Math.round(cur*k*10)/10; // округляем до .1
+  });
+  // микро-коррекция: если из-за округления сумма ≠ 100 — добавляем разницу в самый большой
+  const after = enabled.reduce((a,s)=>a+fd.designSections[s.key].pct,0);
+  const diff = Math.round((100-after)*10)/10;
+  if(Math.abs(diff)>0.05 && enabled.length){
+    const biggest = enabled.reduce((m,s)=>fd.designSections[s.key].pct>fd.designSections[m.key].pct?s:m, enabled[0]);
+    fd.designSections[biggest.key].pct = Math.round((fd.designSections[biggest.key].pct+diff)*10)/10;
+  }
+}
 function confirmAddSection(){
   const label=document.getElementById('newSectionLabel').value.trim();
   const code=document.getElementById('newSectionCode').value.trim().toUpperCase();
@@ -742,6 +884,17 @@ function updateDynamic(){
   if(gt)gt.textContent=t.grandTotal>0?fmt(t.grandTotal)+' руб':'—';
   const ex=document.getElementById('extrasValue');
   if(ex)ex.textContent=t.extras>0?'+'+fmt(t.extras)+' руб':'0';
+
+  // Подытог изысканий (live)
+  const eng=document.getElementById('engineeringSubtotal');
+  if(eng) eng.textContent=fmt(getEngineeringTotal());
+
+  // Двусторонняя синхронизация цены: обновляем поле, в котором НЕ стоит фокус
+  const inpP=document.getElementById('inpPricePerM2');
+  const inpT=document.getElementById('inpTotalContract');
+  const act=document.activeElement;
+  if(inpP && act!==inpP) inpP.value = fd.pricePerM2 ? fmtInput(fd.pricePerM2) : '';
+  if(inpT && act!==inpT) inpT.value = fd.totalContractPrice ? fmtInput(fd.totalContractPrice) : '';
 
   // Cost breakdown table
   const cb=document.getElementById('costBreakdown');
@@ -850,6 +1003,13 @@ async function loadCloudHistory(){
     if(error)throw error;
     cloudHistory=data||[];
   }catch(e){console.error('Supabase load error:',e);cloudHistory=[];}
+  // п.1: автономер КП — назначаем после загрузки истории, чтобы видеть max уже использованный номер
+  if(!fd.kpNumber){
+    fd.kpNumber = generateKpNumber();
+    saveNow();
+    renderNav();
+    render();
+  }
   renderHistory();
   renderAnalytics();
 }
@@ -1001,12 +1161,35 @@ function calcLabor(sectionKey){
   return {totalCost:0, ok:true};
 }
 
+// Динамический заголовок предложения на обложке (зависит от выбранных стадий)
+function getProposalSubtitle(){
+  const s = fd.stages;
+  const hasFull = (s.stageP||s.stageR) && (s.engineering||s.ago);
+  if(hasFull) return 'Комплексное проектирование объекта';
+  if(s.concept && !s.stageP && !s.stageR) return 'Разработка концепции объекта';
+  if(s.ago && !s.stageP && !s.stageR) return 'Разработка архитектурно-градостроительного облика';
+  if(s.stageP && !s.stageR) return 'Разработка проектной документации';
+  if(s.stageR && !s.stageP) return 'Разработка рабочей документации';
+  if(s.stageP && s.stageR) return 'Разработка проектной и рабочей документации';
+  if(s.engineering && !s.stageP && !s.stageR) return 'Инженерные изыскания';
+  return 'Проектные работы';
+}
+
 function generateClientKP(){
+  // п.3: защита от 105%/95% — предупреждение перед генерацией
+  const sumPct = fd.payments.reduce((a,p)=>a+(parseFloat(p.pct)||0),0);
+  if(Math.abs(sumPct-100)>0.1){
+    if(!confirm('⚠ Сумма процентов этапов оплаты = '+fmtDec(sumPct)+'%, должна быть ровно 100%.\n\nСформировать КП всё равно?')) return;
+  }
+  // Предупреждение если не заполнены ключевые поля
+  if(!fd.projectName||!fd.customerName){
+    if(!confirm('Не заполнены обязательные поля (название проекта или заказчик).\n\nПродолжить?')) return;
+  }
   const t=calcTotals();
   const kpDateObj = fd.kpDate ? new Date(fd.kpDate) : new Date();
   const dateFormatted = (isNaN(kpDateObj)?new Date():kpDateObj).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
   const stagesStr = [fd.stages.stageP?'П':null, fd.stages.stageR?'Р':null].filter(Boolean).join(' + ') || 'П + Р';
-  const totalDays = (Number(fd.schedules.agoDays)||0)+(Number(fd.schedules.engineeringDays)||0)+(Number(fd.schedules.stagePDays)||0)+(Number(fd.schedules.expertiseDays)||0)+(Number(fd.schedules.stageRDays)||0);
+  // totalDays переопределится после построения timelineItems ниже (totalDaysCalc)
 
   const sectionNames = {
     gp:'Генеральный план',ar:'Архитектурные решения',kr:'Конструктивные решения',
@@ -1019,7 +1202,9 @@ function generateClientKP(){
     const ds = fd.designSections[s.key];
     const name = sectionNames[s.key] || s.label.replace(/\s*\(.*\)\s*$/,'');
     const code = sectionCodes[s.key] || (s.label.match(/\(([^)]+)\)/)||[])[1] || '';
-    return `<tr><td>${name}</td><td>${code}</td><td class="highlight-val">${ds.stageP?'✓':'—'}</td><td class="highlight-val">${ds.stageR?'✓':'—'}</td></tr>`;
+    const mP = ds.stageP ? '<span class="sec-mark yes">✓</span>' : '<span class="sec-mark no">—</span>';
+    const mR = ds.stageR ? '<span class="sec-mark yes">✓</span>' : '<span class="sec-mark no">—</span>';
+    return `<tr><td>${name}</td><td><span class="sec-code">${code}</span></td><td>${mP}</td><td>${mR}</td></tr>`;
   }).join('');
 
   const servicesRows = [];
@@ -1036,33 +1221,52 @@ function generateClientKP(){
   const pShare = hasP && hasR ? 0.4 : hasP ? 1 : 0;
   const rShare = hasP && hasR ? 0.6 : hasR ? 1 : 0;
 
+  // Описания изысканий — на основе включённых видов
+  const engineeringNote = (()=>{const x=[];if(fd.engineeringTypes.igi)x.push('ИГИ — геология');if(fd.engineeringTypes.igdi)x.push('ИГДИ — геодезия');if(fd.engineeringTypes.igmi)x.push('ИГМИ — гидрометео');if(fd.engineeringTypes.iei)x.push('ИЭИ — экология');return x.join(', ')||'Полный комплекс изысканий'})();
+  // costRows: порядок — концепция → изыскания → АГО → СТУ → СЗЗ → П → экспертиза → Р → авт.надзор
+  // Примечания — описание сути работы (НЕ дублирует колонку «Результат» на стр. этапов)
   const costRows = [];
-  if(getEngineeringTotal()>0) costRows.push(`<tr><td>Инженерные изыскания</td><td class="highlight-val">${fmt(getEngineeringTotal())} руб.</td><td>Геология, геодезия, экология</td></tr>`);
-  if(fd.costs.agoPrice) costRows.push(`<tr><td>Архитектурно-градостроительный облик (АГО)</td><td class="highlight-val">${fmt(fd.costs.agoPrice)} руб.</td><td>${fmt(fd.totalArea)} м²</td></tr>`);
-  if(hasP) costRows.push(`<tr><td>Проектная документация (Стадия П)</td><td class="highlight-val">${fmt(Math.round(t.totalWithNds*pShare))} руб.</td><td>${Math.round(pShare*100)}% от стоимости проектирования</td></tr>`);
-  if(fd.costs.expertisePrice) costRows.push(`<tr><td>Экспертиза</td><td class="highlight-val">${fmt(fd.costs.expertisePrice)} руб.</td><td>${fd.expertiseType==='government'?'Государственная':'Негосударственная'}</td></tr>`);
-  if(hasR) costRows.push(`<tr><td>Рабочая документация (Стадия Р)</td><td class="highlight-val">${fmt(Math.round(t.totalWithNds*rShare))} руб.</td><td>${Math.round(rShare*100)}% от стоимости проектирования</td></tr>`);
-  if(fd.costs.stzuPrice) costRows.push(`<tr><td>СТУ по пожарной безопасности</td><td class="highlight-val">${fmt(fd.costs.stzuPrice)} руб.</td><td>Разработка и согласование</td></tr>`);
-  if(fd.costs.szzPrice) costRows.push(`<tr><td>Расчёт санитарно-защитной зоны (СЗЗ)</td><td class="highlight-val">${fmt(fd.costs.szzPrice)} руб.</td><td>Расчёт и обоснование</td></tr>`);
+  if(fd.stages.concept) costRows.push(`<tr><td>Концепция</td><td class="highlight-val">${fd.costs.conceptPrice?fmt(fd.costs.conceptPrice)+' руб.':'по&nbsp;запросу'}</td><td>Эскизные решения, объёмно-планировочные варианты</td></tr>`);
+  if(getEngineeringTotal()>0) costRows.push(`<tr><td>Инженерные изыскания</td><td class="highlight-val">${fmt(getEngineeringTotal())} руб.</td><td>${engineeringNote}</td></tr>`);
+  if(fd.costs.agoPrice) costRows.push(`<tr><td>Архитектурно-градостроительный облик (АГО)</td><td class="highlight-val">${fmt(fd.costs.agoPrice)} руб.</td><td>Подготовка облика и подача на согласование</td></tr>`);
+  if(fd.costs.stzuPrice) costRows.push(`<tr><td>СТУ по пожарной безопасности</td><td class="highlight-val">${fmt(fd.costs.stzuPrice)} руб.</td><td>Разработка специальных технических условий</td></tr>`);
+  if(fd.costs.szzPrice) costRows.push(`<tr><td>Расчёт санитарно-защитной зоны (СЗЗ)</td><td class="highlight-val">${fmt(fd.costs.szzPrice)} руб.</td><td>Расчёт и обоснование границ СЗЗ</td></tr>`);
+  if(hasP) costRows.push(`<tr><td>Проектная документация (Стадия&nbsp;П)</td><td class="highlight-val">${fmt(Math.round(t.totalWithNds*pShare))} руб.</td><td>Полный комплект документации по всем разделам</td></tr>`);
+  if(fd.costs.expertisePrice) costRows.push(`<tr><td>Сопровождение ${fd.expertiseType==='government'?'госэкспертизы':'негос. экспертизы'}</td><td class="highlight-val">${fmt(fd.costs.expertisePrice)} руб.</td><td>Подача, защита, снятие замечаний</td></tr>`);
+  if(hasR) costRows.push(`<tr><td>Рабочая документация (Стадия&nbsp;Р)</td><td class="highlight-val">${fmt(Math.round(t.totalWithNds*rShare))} руб.</td><td>Детальные чертежи для строительной площадки</td></tr>`);
+  if(fd.additionalServices.authorSupervision) costRows.push(`<tr><td>Авторский надзор</td><td class="highlight-val">по&nbsp;договору</td><td>Сопровождение строительства, журнал авт.&nbsp;надзора</td></tr>`);
   (fd.costs.additionalWorks||[]).filter(w=>w.enabled&&w.price>0).forEach(w=>{
-    costRows.push(`<tr><td>${esc(w.name)||'Дополнительные работы'}</td><td class="highlight-val">${fmt(w.price)} руб.</td><td></td></tr>`);
+    costRows.push(`<tr><td>${esc(w.name)||'Дополнительные работы'}</td><td class="highlight-val">${fmt(w.price)} руб.</td><td>По согласованию</td></tr>`);
   });
-  costRows.push(`<tr class="total-row"><td>ИТОГО</td><td class="highlight-val" style="font-size:16px;">${fmt(t.grandTotal)} руб.</td><td>в т.ч. НДС 5% — ${fmt(t.nds)} руб.</td></tr>`);
+  costRows.push(`<tr class="total-row"><td>ИТОГО</td><td class="highlight-val total-sum-cell">${fmt(t.grandTotal)} руб.</td><td class="nds-note">в т.ч. НДС 5% — ${fmt(t.nds)} руб.</td></tr>`);
 
   const paymentSteps = fd.payments.filter(p=>p.pct>0).map(p=>
     `<div class="payment-step"><div class="pct">${p.pct}%</div><div class="label">${esc(p.desc)}</div></div>`
   ).join('');
 
-  // Таймлайн — только этапы с заполненными днями (>0)
+  // Таймлайн (п.11 итераций): только включённые в форме этапы И с заполненными днями > 0
   const timelineItems = [];
-  if(Number(fd.schedules.engineeringDays)>0) timelineItems.push({title:'Инженерные изыскания',desc:'Полевые и камеральные работы: геология, геодезия, экология. Подготовка технических отчётов.',days:fd.schedules.engineeringDays});
-  if(Number(fd.schedules.agoDays)>0) timelineItems.push({title:'Архитектурно-градостроительный облик (АГО)',desc:'Разработка архитектурно-градостроительного облика объекта.',days:fd.schedules.agoDays});
-  if(Number(fd.schedules.stagePDays)>0) timelineItems.push({title:'Проектная документация (Стадия П)',desc:'Разработка проектной документации по всем разделам, BIM-моделирование, внутренняя проверка.',days:fd.schedules.stagePDays});
-  if(Number(fd.schedules.expertiseDays)>0) timelineItems.push({title:'Прохождение экспертизы',desc:'Подача на экспертизу, работа с замечаниями, получение положительного заключения.',days:fd.schedules.expertiseDays});
-  if(Number(fd.schedules.stageRDays)>0) timelineItems.push({title:'Рабочая документация (Стадия Р)',desc:'Детальная рабочая документация для строительства по всем разделам проекта.',days:fd.schedules.stageRDays});
+  if(fd.stages.concept && Number(fd.schedules.conceptDays)>0)
+    timelineItems.push({title:'Концепция',desc:'Эскизные решения, объёмно-планировочные варианты, согласование с заказчиком.',days:fd.schedules.conceptDays});
+  if(fd.stages.engineering && Number(fd.schedules.engineeringDays)>0)
+    timelineItems.push({title:'Инженерные изыскания',desc:engineeringNote+'. Полевые и камеральные работы, подготовка технических отчётов.',days:fd.schedules.engineeringDays});
+  if(fd.stages.ago && Number(fd.schedules.agoDays)>0)
+    timelineItems.push({title:'Архитектурно-градостроительный облик (АГО)',desc:'Разработка облика объекта и подача на согласование.',days:fd.schedules.agoDays});
+  if(fd.additionalServices.fireSafety && Number(fd.schedules.stuDays)>0)
+    timelineItems.push({title:'СТУ по пожарной безопасности',desc:'Разработка специальных технических условий, согласование в установленном порядке.',days:fd.schedules.stuDays});
+  if(fd.additionalServices.sanitary && Number(fd.schedules.szzDays)>0)
+    timelineItems.push({title:'Санитарно-защитная зона (СЗЗ)',desc:'Расчёт и обоснование границ санитарно-защитной зоны.',days:fd.schedules.szzDays});
+  if(fd.stages.stageP && Number(fd.schedules.stagePDays)>0)
+    timelineItems.push({title:'Проектная документация (Стадия П)',desc:'Разработка проектной документации по всем разделам, BIM-моделирование, внутренняя проверка.',days:fd.schedules.stagePDays});
+  if(fd.stages.expertise && Number(fd.schedules.expertiseDays)>0)
+    timelineItems.push({title:'Сопровождение '+(fd.expertiseType==='government'?'государственной':'негосударственной')+' экспертизы',desc:'Подача документации на экспертизу, работа с замечаниями, получение положительного заключения.',days:fd.schedules.expertiseDays});
+  if(fd.stages.stageR && Number(fd.schedules.stageRDays)>0)
+    timelineItems.push({title:'Рабочая документация (Стадия Р)',desc:'Детальная рабочая документация по всем разделам для строительной площадки.',days:fd.schedules.stageRDays});
   const timelineHtml = timelineItems.map((ti,i)=>
-    `<div class="timeline-item${i===0?' active':''}"><div class="timeline-stage">Этап ${i+1}</div><div class="timeline-title">${ti.title}</div><div class="timeline-desc">${ti.desc}</div><div class="timeline-badge">${ti.days} рабочих дней</div></div>`
+    `<div class="timeline-item${i===0?' active':''}"><div class="timeline-stage">Этап ${String(i+1).padStart(2,'0')}</div><div class="timeline-title">${ti.title}</div><div class="timeline-desc">${ti.desc}</div><div class="timeline-badge">${ti.days} календарных дней</div></div>`
   ).join('');
+  // Общий срок — суммируем только показанные в timeline (а не fd.schedules целиком)
+  const totalDaysCalc = timelineItems.reduce((a,ti)=>a+Number(ti.days),0);
 
   // Исключения — берём из формы (там уже есть дефолтные)
   const exclusionsHtml = (fd.exclusions||[]).filter(e=>e).map(e=>`<li>${esc(e)}</li>`).join('');
@@ -1097,7 +1301,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .cover-top{padding:40px 50px;display:flex;justify-content:space-between;align-items:center}
 .logo-block{display:flex;align-items:center;gap:12px}.logo-block img{height:36px;width:auto}
 .logo-text{font-size:16px;font-weight:700;letter-spacing:1px}.logo-text span{color:var(--green-primary)}
-.cover-badge{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(139,195,74,0.3);color:var(--green-primary);padding:8px 20px;border-radius:24px;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase}
+.cover-badge{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(139,195,74,0.4);background:rgba(139,195,74,0.06);color:var(--green-primary);padding:6px 14px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap}
 .cover-badge::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--green-primary);flex-shrink:0}
 .cover-center{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 50px}
 .cover-label{color:var(--green-primary);font-size:12px;font-weight:500;letter-spacing:3px;text-transform:uppercase;margin-bottom:20px}.cover-label::before{content:'—  '}
@@ -1141,8 +1345,21 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .data-table thead th{background:var(--green-primary);color:var(--bg-dark);padding:14px 18px;font-size:12px;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:0.5px}
 .data-table tbody td{padding:14px 18px;font-size:13px;border-bottom:1px solid var(--border-color);background:var(--bg-card);color:var(--text-light-gray)}
 .data-table tbody tr:last-child td{border-bottom:none}.data-table tbody tr:nth-child(even) td{background:rgba(26,26,26,0.8)}
-.data-table .total-row td{background:rgba(139,195,74,0.1)!important;font-weight:700;color:var(--text-white);font-size:14px}
+.data-table .total-row td{background:rgba(139,195,74,0.14)!important;font-weight:700;color:var(--text-white);font-size:14px}
 .data-table .highlight-val{color:var(--green-primary);font-weight:700}
+/* «ИТОГО» — крупная цифра, авто-сжатие по ширине */
+.data-table .total-sum-cell{font-size:18px;letter-spacing:-.5px;white-space:nowrap;font-feature-settings:"tnum"}
+/* НДС — контрастнее */
+.data-table .nds-note{color:var(--green-light);font-weight:600;font-size:12.5px}
+/* Таблица разделов проектирования */
+.sections-table td:nth-child(1){font-weight:500}
+.sections-table td:nth-child(2),
+.sections-table td:nth-child(3),
+.sections-table td:nth-child(4){text-align:center;vertical-align:middle}
+.sections-table .sec-mark{display:inline-block;width:22px;height:22px;line-height:22px;border-radius:6px;font-weight:700}
+.sections-table .sec-mark.yes{background:rgba(139,195,74,.18);color:var(--green-primary)}
+.sections-table .sec-mark.no{background:rgba(255,255,255,.04);color:#555}
+.sections-table .sec-code{font-family:'JetBrains Mono','SF Mono',Consolas,monospace;font-size:11px;color:var(--text-gray);font-weight:600;letter-spacing:.5px}
 .tep-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .tep-card{background:var(--bg-card);border-radius:12px;padding:18px 20px;border:1px solid var(--border-color)}
 .tep-card-label{font-size:11px;color:var(--text-gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
@@ -1153,8 +1370,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .cost-card.primary{background:linear-gradient(135deg,var(--green-dark),var(--green-primary));border:none}
 .cost-card-label{font-size:11px;color:var(--text-gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
 .cost-card.primary .cost-card-label{color:rgba(255,255,255,0.7)}
-.cost-card-value{font-size:26px;font-weight:800}.cost-card.primary .cost-card-value{color:#fff}
-.cost-card-note{font-size:11px;color:var(--text-gray);margin-top:6px}.cost-card.primary .cost-card-note{color:rgba(255,255,255,0.6)}
+.cost-card-value{font-size:24px;font-weight:800;letter-spacing:-.5px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cost-card.primary .cost-card-value{color:#fff}
+.cost-card-note{font-size:12px;color:var(--text-light-gray);margin-top:6px;font-weight:500}.cost-card.primary .cost-card-note{color:rgba(255,255,255,0.92);font-weight:600}
 .payment-steps{display:flex;gap:16px;margin-top:20px}
 .payment-step{flex:1;background:var(--bg-card);border-radius:14px;padding:22px;border:1px solid var(--border-color);text-align:center}
 .payment-step .pct{font-size:32px;font-weight:800;color:var(--green-primary);margin-bottom:6px}
@@ -1166,13 +1383,13 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .payment-card-sum{font-size:14px;font-weight:600;color:var(--text-white);margin-bottom:8px}
 .payment-card-desc{font-size:12px;color:var(--text-gray);line-height:1.5}
 .timeline{position:relative;padding-left:30px}.timeline::before{content:'';position:absolute;left:6px;top:0;bottom:0;width:2px;background:var(--border-color)}
-.timeline-item{position:relative;margin-bottom:24px;padding-left:30px}
-.timeline-item::before{content:'';position:absolute;left:-30px;top:6px;width:14px;height:14px;background:var(--green-primary);border-radius:50%;border:3px solid var(--bg-dark)}
+.timeline-item{position:relative;margin-bottom:14px;padding-left:24px}
+.timeline-item::before{content:'';position:absolute;left:-24px;top:6px;width:12px;height:12px;background:var(--green-primary);border-radius:50%;border:3px solid var(--bg-dark)}
 .timeline-item.active::before{box-shadow:0 0 0 4px rgba(139,195,74,0.3)}
-.timeline-stage{font-size:11px;color:var(--green-primary);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
-.timeline-title{font-size:15px;font-weight:600;margin-bottom:6px}
-.timeline-desc{font-size:12.5px;color:var(--text-gray);line-height:1.6}
-.timeline-badge{display:inline-block;background:rgba(139,195,74,0.12);color:var(--green-primary);padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;margin-top:6px}
+.timeline-stage{font-size:10px;color:var(--green-primary);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.timeline-title{font-size:13.5px;font-weight:600;margin-bottom:3px;line-height:1.25}
+.timeline-desc{font-size:11.5px;color:var(--text-light-gray);line-height:1.45}
+.timeline-badge{display:inline-block;background:rgba(139,195,74,0.14);color:var(--green-primary);padding:3px 10px;border-radius:5px;font-size:10.5px;font-weight:600;margin-top:5px}
 .team-lead{display:flex;gap:24px;background:var(--bg-card);border-radius:14px;padding:26px;border:1px solid var(--border-color);margin-bottom:18px;align-items:center}
 .team-avatar{width:72px;height:72px;border-radius:50%;background:var(--green-primary);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--bg-dark);flex-shrink:0}
 .team-avatar.sm{width:52px;height:52px;font-size:18px}
@@ -1205,6 +1422,79 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .contacts-footer p{font-size:11px;color:var(--text-gray)}
 .exclusion-list{list-style:none}.exclusion-list li{padding:12px 0;border-bottom:1px solid var(--border-color);font-size:13px;color:var(--text-light-gray);padding-left:24px;position:relative}
 .exclusion-list li::before{content:'×';position:absolute;left:0;color:#ef4444;font-weight:700;font-size:16px}
+
+/* === ОПЛАТА: яркие этапы (п.23) === */
+.pay-progress{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--bg-card);margin:24px 0 28px}
+.pay-progress-seg{height:100%;border-right:2px solid var(--bg-dark)}
+.pay-progress-seg:last-child{border-right:none}
+.pay-progress-seg.s1{background:linear-gradient(90deg,#A8D86E,#8BC34A)}
+.pay-progress-seg.s2{background:linear-gradient(90deg,#8BC34A,#6B9B30)}
+.pay-progress-seg.s3{background:rgba(139,195,74,.4)}
+.pay-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.pay-card{
+  background:var(--bg-card);border:1px solid var(--border-color);border-radius:14px;
+  padding:22px 20px;position:relative;overflow:hidden;
+}
+.pay-card.featured{
+  background:linear-gradient(135deg,var(--green-dark),var(--green-primary));
+  border:none;color:#fff;
+}
+.pay-card .num-badge{
+  position:absolute;top:14px;right:14px;
+  width:26px;height:26px;border-radius:50%;
+  background:rgba(139,195,74,.15);color:var(--green-primary);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;
+}
+.pay-card.featured .num-badge{background:rgba(255,255,255,.2);color:#fff}
+.pay-card .pct-big{
+  font-size:48px;font-weight:800;line-height:1;letter-spacing:-2px;
+  color:var(--green-primary);margin-bottom:6px;
+}
+.pay-card.featured .pct-big{color:#fff}
+.pay-card .sum-big{font-size:16px;font-weight:700;color:var(--text-white);margin-bottom:10px}
+.pay-card.featured .sum-big{color:#fff}
+.pay-card .desc-text{font-size:11.5px;color:var(--text-gray);line-height:1.5}
+.pay-card.featured .desc-text{color:rgba(255,255,255,.85)}
+.pay-card .pay-card-desc-bottom{
+  margin-top:12px;padding-top:10px;
+  border-top:1px solid rgba(139,195,74,.18);
+  font-size:11.5px;line-height:1.45;font-weight:600;
+  color:var(--green-primary);
+}
+.pay-card.featured .pay-card-desc-bottom{
+  border-top-color:rgba(255,255,255,.25);
+  color:#fff;
+}
+
+/* === ОБЪЕДИНЁННЫЙ БЛОК "О КОМПАНИИ" (п.12) === */
+.about-compact-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 22px}
+.about-compact-card{background:var(--bg-card);border-radius:12px;padding:18px 20px;border:1px solid var(--border-color)}
+.about-compact-card .icon{color:var(--green-primary);font-size:18px;margin-bottom:8px}
+.about-compact-card h3{font-size:13px;font-weight:600;margin-bottom:6px}
+.about-compact-card p{font-size:11.5px;color:var(--text-gray);line-height:1.55}
+.services-strip{margin-top:18px}
+.services-strip h4{font-size:11px;color:var(--green-primary);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;font-weight:600}
+.services-strip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.service-mini{background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:14px}
+.service-mini .num{font-size:10px;color:var(--green-primary);font-weight:700;letter-spacing:1px;margin-bottom:6px}
+.service-mini h5{font-size:12px;font-weight:600;margin-bottom:4px;line-height:1.3}
+.service-mini p{font-size:10.5px;color:var(--text-gray);line-height:1.45}
+
+/* === НОМЕР КП в обложке === */
+.cover-kp-number{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid rgba(139,195,74,.4);background:rgba(139,195,74,.08);
+  color:var(--green-primary);padding:6px 14px;border-radius:6px;
+  font-size:11px;font-weight:600;letter-spacing:1px;
+  font-family:'JetBrains Mono','SF Mono',Consolas,monospace;
+  white-space:nowrap;
+}
+.page-header-kpnum{
+  font-family:'JetBrains Mono','SF Mono',Consolas,monospace;
+  font-size:11px;color:var(--green-primary);letter-spacing:.5px;
+  margin-right:14px;
+}
 </style>
 </head>
 <body>
@@ -1214,12 +1504,15 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
   <div class="cover">
     <div class="cover-top">
       <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-      <div class="cover-badge">Проектный институт с 2015 года</div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="cover-kp-number">${esc(fd.kpNumber||'—')}${fd.kpVersion>1?' · ред. '+fd.kpVersion:''}</div>
+        <div class="cover-badge">Проектный институт с 2015 года</div>
+      </div>
     </div>
     <div class="cover-center">
       <div class="cover-label">Коммерческое предложение</div>
       <h1 class="cover-title">Проектирование<br><span class="highlight">${esc(fd.projectName||'Объект проектирования')}</span></h1>
-      <p class="cover-subtitle">Комплексное проектирование объекта по адресу: ${esc(fd.objectAddress||'—')}.<br>Подготовлено для ${esc(fd.customerName||'—')} — ${dateFormatted}.</p>
+      <p class="cover-subtitle">${getProposalSubtitle()} по адресу: ${esc(fd.objectAddress||'—')}.<br>Подготовлено для ${esc(fd.customerName||'—')} — ${dateFormatted}.</p>
     </div>
     <div class="cover-project-info">
       <div class="cover-info-item"><span class="cover-info-label">Заказчик</span><span class="cover-info-value">${esc(fd.customerName||'—')}</span></div>
@@ -1239,93 +1532,47 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
   </div>
 </div>
 
-<!-- PAGE 2: ABOUT -->
+<!-- PAGE 2: О КОМПАНИИ (объединение About + Approach + Services — п.12) -->
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
   </div>
   <div class="page-content">
     <div class="section-label">О компании</div>
-    <h2 class="section-title">Профессиональная команда<br>с 10-летним опытом</h2>
-    <p class="section-description">Проектный институт «ГИП ФОРМАТ» — команда высококвалифицированных инженеров и архитекторов. Мы работаем с крупными жилыми кварталами, общественными зданиями, объектами инфраструктуры и комплексным освоением территорий по всей России.</p>
-    <div class="about-grid">
-      <div class="about-card"><div class="about-card-icon">◈</div><h3>BIM-технологии</h3><p>Первые в Уфе внедрили BIM-моделирование в Autodesk Revit для полной прозрачности проектирования на всех этапах</p></div>
-      <div class="about-card"><div class="about-card-icon">✓</div><h3>Под ключ</h3><p>Полный цикл: от концепции и изысканий до рабочей документации, экспертизы и авторского надзора</p></div>
-      <div class="about-card"><div class="about-card-icon">⏱</div><h3>Сроки и бюджет</h3><p>Строгое соблюдение согласованных сроков и контроль бюджета проекта на каждом этапе</p></div>
-      <div class="about-card"><div class="about-card-icon">⚡</div><h3>Индивидуальный подход</h3><p>Готовность оперативно адаптироваться под потребности заказчика и специфику объекта</p></div>
+    <h2 class="section-title">Проектный институт<br>с 10-летним опытом</h2>
+    <p class="section-description">Команда высококвалифицированных инженеров и архитекторов. Работаем с крупными жилыми кварталами, общественными зданиями и комплексным освоением территорий по всей России.</p>
+
+    <div class="about-compact-grid">
+      <div class="about-compact-card"><div class="icon">◈</div><h3>BIM-технологии</h3><p>Все разделы проектируются в единой информационной модели в Autodesk Revit с автоматической проверкой коллизий.</p></div>
+      <div class="about-compact-card"><div class="icon">✓</div><h3>Полный цикл «под ключ»</h3><p>От изысканий и АГО до рабочей документации и сопровождения экспертизы — всё внутри компании.</p></div>
+      <div class="about-compact-card"><div class="icon">⏱</div><h3>Сроки и контроль качества</h3><p>Многоуровневая система проверки: инженер → ГИП → нормоконтроль. Еженедельные отчёты заказчику.</p></div>
+      <div class="about-compact-card"><div class="icon">⚡</div><h3>Сопровождение экспертизы</h3><p>Полное сопровождение государственной и негосударственной экспертизы. Проекты проходят с первого раза.</p></div>
     </div>
+
     <div class="about-stats-bar">
       <div class="about-stat"><div class="about-stat-num">150+</div><div class="about-stat-text">Проектов</div></div>
       <div class="about-stat"><div class="about-stat-num">600K+</div><div class="about-stat-text">м² жилья</div></div>
       <div class="about-stat"><div class="about-stat-num">10</div><div class="about-stat-text">Лет на рынке</div></div>
       <div class="about-stat"><div class="about-stat-num">BIM</div><div class="about-stat-text">Технологии</div></div>
     </div>
-  </div>
-</div>
 
-<!-- PAGE 3: APPROACH -->
-<div class="page">
-  <div class="page-header">
-    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
-  </div>
-  <div class="page-content">
-    <div class="section-label">Наш подход</div>
-    <h2 class="section-title">Почему с нами проекты<br>реализуются без проблем</h2>
-    <p class="section-description">Мы используем системный подход к проектированию, который предотвращает ошибки ещё до начала строительства.</p>
-    <div class="approach-items">
-      <div class="approach-item"><div class="approach-num">1</div><div><h3>BIM-координация всех разделов</h3><p>Все инженерные системы проектируются в единой информационной модели. Автоматическая проверка коллизий между конструкциями, сетями и архитектурой.</p></div></div>
-      <div class="approach-item"><div class="approach-num">2</div><div><h3>Комплексный подход «под ключ»</h3><p>Ведём проект от начальной стадии до получения положительного заключения экспертизы. Все разделы подготавливаются внутри компании.</p></div></div>
-      <div class="approach-item"><div class="approach-num">3</div><div><h3>Контроль качества на каждом этапе</h3><p>Многоуровневая система проверки: инженер → ГИП → внутренняя нормоконтроль. Каждый раздел проходит проверку перед передачей.</p></div></div>
-      <div class="approach-item"><div class="approach-num">4</div><div><h3>Прозрачные сроки и отчётность</h3><p>Еженедельные отчёты о ходе проектирования. Промежуточные результаты доступны заказчику по запросу.</p></div></div>
-      <div class="approach-item"><div class="approach-num">5</div><div><h3>Сопровождение экспертизы</h3><p>Полное сопровождение проектной документации при прохождении государственной или негосударственной экспертизы.</p></div></div>
-    </div>
-    <div class="approach-highlight"><p><strong>Наш результат:</strong> проекты, прошедшие экспертизу с первого раза, и строительство без дорогостоящих переделок.</p></div>
-  </div>
-</div>
-
-<!-- PAGE 4: SERVICES -->
-<div class="page">
-  <div class="page-header">
-    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
-  </div>
-  <div class="page-content">
-    <div class="section-label">Услуги</div>
-    <h2 class="section-title">Что мы проектируем<br>и какие работы выполняем</h2>
-    <p class="section-description">Полный спектр проектных и изыскательских работ — от первичной концепции до сопровождения строительства.</p>
-    <div class="services-grid">
-      <div class="service-card"><div class="num">01</div><div class="service-card-icon">🏗</div><h3>Архитектурное проектирование</h3><p>Разработка архитектурных и конструктивных решений для жилых комплексов, общественных зданий</p></div>
-      <div class="service-card"><div class="num">02</div><div class="service-card-icon">📐</div><h3>Градостроительное проектирование</h3><p>Проекты планировки, мастер-планы кварталов, концепции комплексного освоения территорий</p></div>
-      <div class="service-card"><div class="num">03</div><div class="service-card-icon">◈</div><h3>BIM-моделирование</h3><p>Информационное моделирование зданий на всех стадиях проектирования в Autodesk Revit</p></div>
-      <div class="service-card"><div class="num">04</div><div class="service-card-icon">⚡</div><h3>Инженерные сети и системы</h3><p>Водоснабжение, канализация, отопление, вентиляция, электроснабжение, слаботочные системы</p></div>
-      <div class="service-card"><div class="num">05</div><div class="service-card-icon">🔍</div><h3>Инженерные изыскания</h3><p>Полный комплекс изысканий: геология, геодезия, экология, гидрометеорология</p></div>
-      <div class="service-card"><div class="num">06</div><div class="service-card-icon">✓</div><h3>Авторский надзор</h3><p>Сопровождение проектов на всех этапах реализации строительного объекта</p></div>
+    <div class="services-strip">
+      <h4>Что мы делаем</h4>
+      <div class="services-strip-grid">
+        <div class="service-mini"><div class="num">01</div><h5>Архитектурное и градостроительное проектирование</h5><p>Жилые комплексы, общественные здания, мастер-планы кварталов</p></div>
+        <div class="service-mini"><div class="num">02</div><h5>Инженерные сети и системы</h5><p>ВК, ОВиК, ЭО, СС — все разделы внутри компании</p></div>
+        <div class="service-mini"><div class="num">03</div><h5>Изыскания, СТУ и авторский надзор</h5><p>ИГИ, ИГМИ, ИГДИ, СЗЗ, СТУ ПБ, сопровождение строительства</p></div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- PAGE 4b: PROJECT SERVICES -->
+<!-- PAGE 3: ТЭП (п.13 — сразу после "о нас") -->
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
-  </div>
-  <div class="page-content">
-    <div class="section-label">Для данного проекта</div>
-    <h2 class="section-title">Предлагаемые услуги<br>и состав работ</h2>
-    <p class="section-description">Перечень работ, включённых в коммерческое предложение для вашего объекта.</p>
-    <table class="data-table"><thead><tr><th>№</th><th>Услуга</th><th>Стадия</th><th>Включено</th></tr></thead>
-    <tbody>${servicesRows.join('')}</tbody></table>
-  </div>
-</div>
-
-<!-- PAGE 5: TEP -->
-<div class="page">
-  <div class="page-header">
-    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
   </div>
   <div class="page-content">
     <div class="section-label">Параметры объекта</div>
@@ -1334,171 +1581,183 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
     <div class="tep-grid">
       <div class="tep-card full"><div class="tep-card-label">Название объекта</div><div class="tep-card-value">${esc(fd.projectName||'—')}</div></div>
       <div class="tep-card full"><div class="tep-card-label">Адрес</div><div class="tep-card-value">${esc(fd.objectAddress||'—')}</div></div>
-      <div class="tep-card"><div class="tep-card-label">Тип объекта</div><div class="tep-card-value">${esc(fd.objectType||'—')}</div></div>
-      <div class="tep-card"><div class="tep-card-label">Назначение</div><div class="tep-card-value">${esc(fd.objectPurpose||fd.objectType||'—')}</div></div>
+      ${fd.showObjectType&&fd.objectType?`<div class="tep-card"><div class="tep-card-label">Тип объекта</div><div class="tep-card-value">${esc(fd.objectType)}</div></div>`:''}
+      ${fd.showObjectPurpose&&fd.objectPurpose?`<div class="tep-card"><div class="tep-card-label">Назначение</div><div class="tep-card-value">${esc(fd.objectPurpose)}</div></div>`:''}
       <div class="tep-card accent"><div class="tep-card-label">Продаваемая площадь</div><div class="tep-card-value">${fmt(fd.totalArea)} м²</div></div>
-      <div class="tep-card"><div class="tep-card-label">Этажность</div><div class="tep-card-value">${esc(fd.floorsCount||'—')} этажей</div></div>
-      ${fd.sectionsCount?`<div class="tep-card"><div class="tep-card-label">Количество секций</div><div class="tep-card-value">${fd.sectionsCount} секций</div></div>`:''}
-      ${fd.apartmentsCount?`<div class="tep-card"><div class="tep-card-label">Количество квартир</div><div class="tep-card-value">${fd.apartmentsCount} квартир</div></div>`:''}
-      ${fd.landArea?`<div class="tep-card"><div class="tep-card-label">Площадь земельного участка</div><div class="tep-card-value">${fd.landArea} га</div></div>`:''}
-      ${fd.cadastralNumber?`<div class="tep-card"><div class="tep-card-label">Кадастровый номер</div><div class="tep-card-value">${esc(fd.cadastralNumber)}</div></div>`:''}
+      ${fd.showFloors&&fd.floorsCount?`<div class="tep-card"><div class="tep-card-label">Этажность</div><div class="tep-card-value">${esc(fd.floorsCount)} этажей</div></div>`:''}
+      ${fd.showSections&&fd.sectionsCount?`<div class="tep-card"><div class="tep-card-label">Количество секций</div><div class="tep-card-value">${fd.sectionsCount} секций</div></div>`:''}
+      ${fd.showApartments&&fd.apartmentsCount?`<div class="tep-card"><div class="tep-card-label">Количество квартир</div><div class="tep-card-value">${fd.apartmentsCount} квартир</div></div>`:''}
+      ${fd.showLandArea&&fd.landArea?`<div class="tep-card"><div class="tep-card-label">Площадь земельного участка</div><div class="tep-card-value">${fd.landArea} га</div></div>`:''}
+      ${fd.showCadastral&&fd.cadastralNumber?`<div class="tep-card"><div class="tep-card-label">Кадастровый номер</div><div class="tep-card-value">${esc(fd.cadastralNumber)}</div></div>`:''}
       ${fd.showParking&&fd.parkingArea?`<div class="tep-card"><div class="tep-card-label">Площадь паркинга</div><div class="tep-card-value">${fmt(fd.parkingArea)} м²</div></div>`:''}
       ${fd.showCommercial&&fd.commercialArea?`<div class="tep-card"><div class="tep-card-label">Площадь коммерческих помещений</div><div class="tep-card-value">${fmt(fd.commercialArea)} м²</div></div>`:''}
     </div>
   </div>
 </div>
 
-<!-- PAGE 5b: DESIGN COMPOSITION -->
+<!-- PAGE 4: СОСТАВ РАБОТ — ЭТАПЫ (п.1 итераций — разделили на 2 страницы) -->
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
   </div>
   <div class="page-content">
-    <div class="section-label">Состав проектирования</div>
-    <h2 class="section-title">Разделы проектной<br>и рабочей документации</h2>
-    <p class="section-description">Перечень разделов, включённых в состав проектирования по данному объекту.</p>
-    <table class="data-table"><thead><tr><th>Раздел</th><th>Шифр</th><th>Стадия П</th><th>Стадия Р</th></tr></thead>
-    <tbody>${designRowsHtml}</tbody></table>
-  </div>
-</div>
-
-<!-- PAGE 6: STAGES -->
-<div class="page">
-  <div class="page-header">
-    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
-  </div>
-  <div class="page-content">
-    <div class="section-label">Этапы работ</div>
-    <h2 class="section-title">Состав и последовательность<br>выполнения работ</h2>
-    <table class="data-table"><thead><tr><th style="width:60px;">Этап</th><th>Наименование</th><th>Описание</th><th style="width:130px;">Результат</th></tr></thead>
+    <div class="section-label">Состав работ — этапы</div>
+    <h2 class="section-title">Последовательность<br>выполнения работ</h2>
+    <p class="section-description">Этапы проектирования и сопутствующих работ для данного объекта. Каждый этап завершается передачей конкретного результата заказчику.</p>
+    <table class="data-table"><thead><tr><th style="width:50px;">№</th><th>Этап</th><th style="width:200px">Результат</th></tr></thead>
     <tbody>${(()=>{
       const rows=[];
-      if(fd.stages.engineering||getEngineeringTotal()>0) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Инженерные изыскания</strong></td><td>Геологические, геодезические, экологические изыскания на участке строительства</td><td>Отчёт по изысканиям</td></tr>');
-      if(fd.stages.ago||fd.costs.agoPrice) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Архитектурно-градостроительный облик (АГО)</strong></td><td>Разработка архитектурно-градостроительного облика объекта</td><td>Согласованный АГО</td></tr>');
-      if(fd.stages.stageP) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Проектная документация (П)</strong></td><td>Разработка проектной документации по всем разделам для прохождения экспертизы</td><td>Комплект ПД</td></tr>');
-      if(fd.stages.expertise||fd.costs.expertisePrice) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Экспертиза</strong></td><td>Подача документации на экспертизу, снятие замечаний</td><td>Положительное заключение</td></tr>');
-      if(fd.stages.stageR) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Рабочая документация (Р)</strong></td><td>Разработка детальной рабочей документации для строительства</td><td>Комплект РД</td></tr>');
-      if(fd.additionalServices.authorSupervision) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Авторский надзор</strong></td><td>Сопровождение строительства, контроль соответствия проекту</td><td>Журнал авт. надзора</td></tr>');
-      return rows.join('');
+      if(fd.stages.concept) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Концепция</strong> — эскизные решения, объёмно-планировочные варианты</td><td>Альбом концепции</td></tr>');
+      if(fd.stages.engineering) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Инженерные изыскания</strong> — '+engineeringNote+'</td><td>Технический отчёт</td></tr>');
+      if(fd.stages.ago) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Архитектурно-градостроительный облик (АГО)</strong> — подготовка и согласование облика объекта</td><td>Согласованный облик</td></tr>');
+      if(fd.additionalServices.fireSafety) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>СТУ по пожарной безопасности</strong> — разработка специальных технических условий</td><td>Согласованные СТУ</td></tr>');
+      if(fd.additionalServices.sanitary) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Расчёт санитарно-защитной зоны (СЗЗ)</strong> — расчёт и обоснование границ зоны</td><td>Обоснование СЗЗ</td></tr>');
+      if(fd.stages.stageP) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Проектная документация (Стадия П)</strong> — комплект документации по всем разделам</td><td>Комплект ПД</td></tr>');
+      if(fd.stages.expertise) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Сопровождение '+(fd.expertiseType==='government'?'государственной':'негосударственной')+' экспертизы</strong></td><td>Положительное заключение</td></tr>');
+      if(fd.stages.stageR) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Рабочая документация (Стадия Р)</strong> — детальные чертежи для строительства</td><td>Комплект РД</td></tr>');
+      if(fd.additionalServices.authorSupervision) rows.push('<tr><td class="highlight-val">'+(String(rows.length+1).padStart(2,'0'))+'</td><td><strong>Авторский надзор</strong> — сопровождение строительства</td><td>Журнал авт. надзора</td></tr>');
+      return rows.join('')||'<tr><td colspan="3" style="text-align:center;color:var(--text-gray)">Этапы не выбраны в форме</td></tr>';
     })()}</tbody></table>
-    ${addServicesRows.length?`<div style="margin-top:30px;"><div class="section-label" style="margin-bottom:10px;">Дополнительные работы</div><table class="data-table"><thead><tr><th>Наименование</th><th>Описание</th><th style="width:100px;">Статус</th></tr></thead><tbody>${addServicesRows.join('')}</tbody></table></div>`:''}
   </div>
 </div>
 
-<!-- PAGE 7: COST -->
+<!-- PAGE 5: СОСТАВ РАБОТ — РАЗДЕЛЫ ДОКУМЕНТАЦИИ (п.4 итераций — разделы в отдельной странице) -->
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
+  </div>
+  <div class="page-content">
+    <div class="section-label">Состав работ — разделы документации</div>
+    <h2 class="section-title">Разделы проектной<br>и рабочей документации</h2>
+    <p class="section-description">Проектная документация — для прохождения экспертизы (общие решения и обоснования). Рабочая документация — для строительной площадки (детальные чертежи, спецификации, узлы).</p>
+    <table class="data-table sections-table"><thead><tr><th>Раздел</th><th style="width:70px;text-align:center">Шифр</th><th style="width:130px;text-align:center">Проектная</th><th style="width:130px;text-align:center">Рабочая</th></tr></thead>
+    <tbody>${designRowsHtml||'<tr><td colspan="4" style="text-align:center;color:var(--text-gray)">Разделы не выбраны</td></tr>'}</tbody></table>
+  </div>
+</div>
+
+<!-- PAGE 6: СТОИМОСТЬ (п.6 итераций — НДС контрастнее, п.7 авто-сжатие, п.8 срок работ) -->
+<div class="page">
+  <div class="page-header">
+    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
   </div>
   <div class="page-content">
     <div class="section-label">Стоимость</div>
     <h2 class="section-title">Стоимость работ</h2>
     <p class="section-description">Стоимость рассчитана на основании площади объекта, состава работ и стадий проектирования.</p>
-    <table class="data-table"><thead><tr><th>Этап</th><th>Стоимость</th><th>Примечание</th></tr></thead>
+    <table class="data-table"><thead><tr><th>Этап / Работа</th><th style="width:150px">Стоимость</th><th style="width:240px">Описание</th></tr></thead>
     <tbody>${costRows.join('')}</tbody></table>
-    <div class="cost-summary">
+    <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:14px;margin-top:20px">
       <div class="cost-card primary"><div class="cost-card-label">Итого стоимость</div><div class="cost-card-value">${fmt(t.grandTotal)} ₽</div><div class="cost-card-note">в т.ч. НДС 5% — ${fmt(t.nds)} ₽</div></div>
-      <div class="cost-card"><div class="cost-card-label">Стоимость за м²</div><div class="cost-card-value" style="color:var(--green-primary);">${fd.totalArea>0?fmt(Math.round(t.grandTotal/fd.totalArea)):0} ₽/м²</div><div class="cost-card-note">Все стадии включены</div></div>
+      <div class="cost-card"><div class="cost-card-label">Цена за м²</div><div class="cost-card-value" style="color:var(--green-primary);">${fd.totalArea>0?fmt(Math.round(t.grandTotal/fd.totalArea)):0} ₽/м²</div><div class="cost-card-note">продаваемой площади</div></div>
+      <div class="cost-card"><div class="cost-card-label">Срок работ</div><div class="cost-card-value" style="color:var(--green-primary);">${totalDaysCalc} дн.</div><div class="cost-card-note">календарных дней</div></div>
     </div>
   </div>
 </div>
 
-<!-- PAGE 7b: PAYMENT ORDER -->
+<!-- PAGE 7: СРОКИ (п.9 итераций — переставили перед оплатой) -->
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
-  </div>
-  <div class="page-content">
-    <div class="section-label">Оплата</div>
-    <h2 class="section-title">Порядок и условия<br>оплаты работ</h2>
-    <p class="section-description">График поэтапной оплаты, привязанный к ключевым результатам проектирования.</p>
-    <div class="payment-grid">${fd.payments.filter(p=>p.pct>0).map((p,i)=>
-      `<div class="payment-card-kp">
-        <div class="payment-card-num">${String(i+1).padStart(2,'0')}</div>
-        <div class="payment-card-pct">${p.pct}%</div>
-        <div class="payment-card-sum">${fmt(Math.round(t.grandTotal*p.pct/100))} ₽</div>
-        <div class="payment-card-desc">${esc(p.desc)}</div>
-      </div>`
-    ).join('')}</div>
-    <div class="cost-summary" style="margin-top:24px">
-      <div class="cost-card primary"><div class="cost-card-label">Итого к оплате</div><div class="cost-card-value">${fmt(t.grandTotal)} ₽</div><div class="cost-card-note">в т.ч. НДС 5%</div></div>
-      <div class="cost-card"><div class="cost-card-label">Этапов оплаты</div><div class="cost-card-value" style="color:var(--green-primary);">${fd.payments.filter(p=>p.pct>0).length}</div><div class="cost-card-note">по графику</div></div>
-    </div>
-  </div>
-</div>
-
-<!-- PAGE 8: TIMELINE -->
-<div class="page">
-  <div class="page-header">
-    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
   </div>
   <div class="page-content">
     <div class="section-label">Сроки</div>
     <h2 class="section-title">График выполнения работ</h2>
-    <p class="section-description">Ориентировочные сроки выполнения каждого этапа. Точные даты фиксируются в договоре.</p>
-    <div class="timeline">${timelineHtml}</div>
+    <p class="section-description">Ориентировочные сроки выполнения каждого этапа. Точные даты фиксируются в договоре. Этапы могут выполняться параллельно.</p>
+    <div class="timeline">${timelineHtml||'<p style="color:var(--text-gray)">Сроки этапов не заданы в форме.</p>'}</div>
     <div class="cost-summary" style="margin-top:24px;">
-      <div class="cost-card primary"><div class="cost-card-label">Общий срок</div><div class="cost-card-value">${totalDays} дней</div><div class="cost-card-note">рабочих дней с момента подписания договора</div></div>
-      <div class="cost-card"><div class="cost-card-label">Начало работ</div><div class="cost-card-value" style="color:var(--green-primary);font-size:20px;">После получения аванса</div><div class="cost-card-note">и подписания договора</div></div>
+      <div class="cost-card primary"><div class="cost-card-label">Общий срок</div><div class="cost-card-value">${totalDaysCalc} дней</div><div class="cost-card-note">календарных дней с момента старта работ</div></div>
+      <div class="cost-card"><div class="cost-card-label">Начало работ</div><div class="cost-card-value" style="color:var(--green-primary);font-size:18px;line-height:1.2">После получения ИРД<br><span style="font-size:14px;color:var(--text-light-gray);font-weight:500">и аванса</span></div><div class="cost-card-note">подписание договора + исходно-разрешительная документация</div></div>
     </div>
   </div>
 </div>
 
-<!-- PAGE 9: TEAM -->
+<!-- PAGE 8: ОПЛАТА (п.10 итераций — выделить конкретные этапы вместо «по графику») -->
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
+  </div>
+  <div class="page-content">
+    <div class="section-label">Оплата</div>
+    <h2 class="section-title">Порядок и условия<br>оплаты работ</h2>
+    <p class="section-description">График поэтапной оплаты, привязанный к ключевым результатам проектирования. Аванс — старт работ, последующие платежи — по факту передачи документации.</p>
+
+    ${(()=>{
+      const pays = fd.payments.filter(p=>p.pct>0);
+      if(!pays.length) return '<p style="color:var(--text-gray)">Этапы оплаты не настроены в форме.</p>';
+      // Прогресс-бар (накопительный)
+      const segs = pays.map((p,i)=>`<div class="pay-progress-seg ${i===0?'s1':(i<pays.length-1?'s2':'s3')}" style="width:${p.pct}%" title="${p.pct}%"></div>`).join('');
+      // Все этапы — featured. Никаких «по графику». Тег = первая строка описания пользователя.
+      // Featured (зелёная плашка): первый (аванс) и последний (финальный) этапы
+      const cards = pays.map((p,i)=>{
+        const sum = fmt(Math.round(t.grandTotal*p.pct/100));
+        const desc = (p.desc||'').trim() || ('Этап '+(i+1));
+        const isFeatured = i===0 || i===pays.length-1;
+        return `<div class="pay-card${isFeatured?' featured':''}">
+          <div class="num-badge">${String(i+1).padStart(2,'0')}</div>
+          <div class="pct-big">${p.pct}%</div>
+          <div class="sum-big">${sum} ₽</div>
+          <div class="pay-card-desc-bottom">${esc(desc)}</div>
+        </div>`;
+      }).join('');
+      return `<div class="pay-progress">${segs}</div><div class="pay-cards">${cards}</div>`;
+    })()}
+
+    <div class="cost-summary" style="margin-top:24px">
+      <div class="cost-card primary"><div class="cost-card-label">Итого к оплате</div><div class="cost-card-value">${fmt(t.grandTotal)} ₽</div><div class="cost-card-note">в т.ч. НДС 5% — ${fmt(t.nds)} ₽</div></div>
+      <div class="cost-card"><div class="cost-card-label">Этапов оплаты</div><div class="cost-card-value" style="color:var(--green-primary);">${fd.payments.filter(p=>p.pct>0).length}</div><div class="cost-card-note">привязаны к результатам этапов</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 9: ЧТО НЕ ВХОДИТ (п.14 итераций — перед командой) -->
+<div class="page">
+  <div class="page-header">
+    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
+  </div>
+  <div class="page-content">
+    <div class="section-label">Границы предложения</div>
+    <h2 class="section-title">Что не входит<br>в стоимость</h2>
+    <p class="section-description">Перечень работ и услуг, которые не включены в данное коммерческое предложение. При необходимости стоимость этих работ согласовывается отдельно.</p>
+    <ul class="exclusion-list" style="margin-top:14px">${exclusionsHtml||'<li style="color:var(--text-gray)">Все работы включены в стоимость</li>'}</ul>
+    <div class="approach-highlight" style="margin-top:24px">
+      <p>Если какой-либо из перечисленных пунктов вам нужен — мы можем расширить состав работ. <strong>Свяжитесь с нами для уточнения.</strong></p>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 10: КОМАНДА -->
+<div class="page">
+  <div class="page-header">
+    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
   </div>
   <div class="page-content">
     <div class="section-label">Команда</div>
     <h2 class="section-title">Руководство и ключевые<br>специалисты проекта</h2>
-    <p class="section-description">Наша команда — это опытные инженеры и архитекторы, объединённые общей целью создавать проекты, которыми можно гордиться.</p>
-    <div class="team-lead"><div class="team-avatar">РК</div><div class="team-info"><h3>Камбулатов Руслан Юлаевич</h3><div class="team-role">Директор</div><div class="team-desc">Стратегическое управление и развитие компании. Более 10 лет опыта в проектировании и управлении строительными проектами.</div></div></div>
-    <div class="team-lead"><div class="team-avatar">ИЧ</div><div class="team-info"><h3>Ильяс Чанышев</h3><div class="team-role">Директор по развитию</div><div class="team-desc">Развитие деловых связей и взаимодействие с партнёрами. Выстраивание долгосрочных отношений с заказчиками.</div></div></div>
+    <p class="section-description">Опытные инженеры и архитекторы, объединённые общей целью — создавать проекты, которыми можно гордиться.</p>
+    <div class="team-lead"><div class="team-avatar">РК</div><div class="team-info"><h3>Камбулатов Руслан Юлаевич</h3><div class="team-role">Директор · +7 (987) 141-31-11</div><div class="team-desc">Стратегическое управление и развитие компании. Более 10 лет опыта в проектировании и управлении строительными проектами.</div></div></div>
+    <div class="team-lead"><div class="team-avatar">ИЧ</div><div class="team-info"><h3>Ильяс Чанышев</h3><div class="team-role">Директор по развитию · +7 (917) 345-48-98</div><div class="team-desc">Развитие деловых связей и взаимодействие с партнёрами. Выстраивание долгосрочных отношений с заказчиками.</div></div></div>
     <div class="team-section-label">Главные архитекторы проектов</div>
     <div class="team-grid">
-      <div class="team-member"><div class="team-avatar sm">АБ</div><div class="team-member-info"><h4>Айгуль</h4><div class="role">Главный архитектор проекта</div><p>Архитектурные решения и BIM-координация</p></div></div>
-      <div class="team-member"><div class="team-avatar sm">КС</div><div class="team-member-info"><h4>Ксения</h4><div class="role">Главный архитектор проекта</div><p>Архитектурные решения и концепции</p></div></div>
-      <div class="team-member"><div class="team-avatar sm">СВ</div><div class="team-member-info"><h4>Слава</h4><div class="role">Главный архитектор проекта</div><p>Проектная документация и экспертиза</p></div></div>
-      <div class="team-member"><div class="team-avatar sm">РС</div><div class="team-member-info"><h4>Рустем</h4><div class="role">Главный архитектор проекта</div><p>Инженерные решения и координация</p></div></div>
+      <div class="team-member"><div class="team-avatar sm">АБ</div><div class="team-member-info"><h4>Айгуль</h4><div class="role">ГАП</div><p>Архитектура и BIM-координация</p></div></div>
+      <div class="team-member"><div class="team-avatar sm">КС</div><div class="team-member-info"><h4>Ксения</h4><div class="role">ГАП</div><p>Архитектурные решения и концепции</p></div></div>
+      <div class="team-member"><div class="team-avatar sm">СВ</div><div class="team-member-info"><h4>Слава</h4><div class="role">ГАП</div><p>Проектная документация и экспертиза</p></div></div>
+      <div class="team-member"><div class="team-avatar sm">РС</div><div class="team-member-info"><h4>Рустем</h4><div class="role">ГАП</div><p>Инженерные решения и координация</p></div></div>
     </div>
   </div>
 </div>
 
-<!-- PAGE 10: PORTFOLIO -->
+<!-- PAGE 11: КОНТАКТЫ -->
 <div class="page">
   <div class="page-header">
     <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
-  </div>
-  <div class="page-content">
-    <div class="section-label">Портфолио</div>
-    <h2 class="section-title">Реализованные проекты</h2>
-    <p class="section-description">Некоторые из наших завершённых проектов, демонстрирующих опыт работы с объектами аналогичного типа.</p>
-    <div class="portfolio-grid">
-      <div class="portfolio-card"><div class="portfolio-card-img">Фото объекта</div><div class="portfolio-card-body"><h3>ЖК «Сердце Столицы»</h3><div class="portfolio-tags"><span class="portfolio-tag">Жилой комплекс</span><span class="portfolio-tag">45 000 м²</span></div><div class="portfolio-meta">Уфа, 2023 — Полный цикл проектирования</div></div></div>
-      <div class="portfolio-card"><div class="portfolio-card-img">Фото объекта</div><div class="portfolio-card-body"><h3>ТЦ «Галактика»</h3><div class="portfolio-tags"><span class="portfolio-tag">Общественное здание</span><span class="portfolio-tag">28 000 м²</span></div><div class="portfolio-meta">Уфа, 2022 — Архитектура и инженерия</div></div></div>
-      <div class="portfolio-card"><div class="portfolio-card-img">Фото объекта</div><div class="portfolio-card-body"><h3>ЖК «Зелёная роща»</h3><div class="portfolio-tags"><span class="portfolio-tag">Жилой комплекс</span><span class="portfolio-tag">62 000 м²</span></div><div class="portfolio-meta">Уфа, 2024 — BIM-проектирование</div></div></div>
-      <div class="portfolio-card"><div class="portfolio-card-img">Фото объекта</div><div class="portfolio-card-body"><h3>МФК «Бизнес-Центр»</h3><div class="portfolio-tags"><span class="portfolio-tag">Многофункциональный</span><span class="portfolio-tag">35 000 м²</span></div><div class="portfolio-meta">Уфа, 2023 — Комплексное проектирование</div></div></div>
-    </div>
-    <div style="margin-top:24px;">
-      <div class="section-label" style="margin-bottom:10px;">Что не входит в стоимость</div>
-      <ul class="exclusion-list">${exclusionsHtml}</ul>
-    </div>
-  </div>
-</div>
-
-<!-- PAGE 11: CONTACTS -->
-<div class="page">
-  <div class="page-header">
-    <div class="logo-block">${logoImg}<div class="logo-text">ГИП <span>ФОРМАТ</span></div></div>
-    <div class="page-number page-num-auto"></div>
+    <div style="display:flex;align-items:center"><span class="page-header-kpnum">${esc(fd.kpNumber||'')}</span><div class="page-number page-num-auto"></div></div>
   </div>
   <div class="page-content">
     <div class="contacts-page">
@@ -1508,14 +1767,14 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
         <p class="section-description">Свяжитесь с нами для уточнения деталей и начала сотрудничества. Мы ответим в течение одного рабочего дня.</p>
         <div class="contacts-grid">
           <div class="contact-card"><div class="contact-card-icon">📍</div><h4>Адрес</h4><p>г. Уфа, ул. Революционная, 96/5</p></div>
-          <div class="contact-card"><div class="contact-card-icon">📞</div><h4>Телефон</h4><p>+7 (987) 141-31-11<br><span style="font-size:11px;color:var(--text-gray)">+7 (917) 345-48-98</span></p></div>
+          <div class="contact-card"><div class="contact-card-icon">📞</div><h4>Телефоны</h4><p>+7 (987) 141-31-11<br><span style="font-size:11px;color:var(--text-gray)">+7 (917) 345-48-98</span></p></div>
           <div class="contact-card"><div class="contact-card-icon">📧</div><h4>E-mail</h4><p>gipformat@yandex.ru</p></div>
           <div class="contact-card"><div class="contact-card-icon">🌐</div><h4>Сайт</h4><p>gip-f.ru</p></div>
         </div>
         <div class="contacts-cta"><h3>Сотрудничайте с профессионалами!</h3><p>Более 10 лет опыта, 150+ реализованных проектов и BIM-технологии<br>для безупречного результата.</p></div>
       </div>
       <div class="contacts-footer">
-        <p style="font-weight:600;color:var(--green-primary)">ГИП ФОРМАТ</p>
+        <p style="font-weight:600;color:var(--green-primary)">ГИП ФОРМАТ · ${esc(fd.kpNumber||'')}</p>
         <p>ООО «ГИП «ФОРМАТ» • gip-f.ru</p>
         <p>${dateFormatted}</p>
       </div>
@@ -1611,9 +1870,11 @@ function clearAll(){
 }
 
 // ========== INIT ==========
+applyAutoExclusions();        // п.27: применить авто-исключения сразу при загрузке формы
+normalizePcts();              // дефолтная сумма % = 105, нормализуем до 100 на старте
 renderNav();
 render();
-loadCloudHistory();
+loadCloudHistory();           // после загрузки истории внутри проставится автономер КП (п.1)
 </script>
 </body>
 </html>
